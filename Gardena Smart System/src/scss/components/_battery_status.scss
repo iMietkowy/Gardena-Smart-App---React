@@ -1,0 +1,41 @@
+@use '../common/variables' as v;
+
+.battery-status-bar {
+	margin-top: 1rem;
+	width: 100%;
+
+	.battery-text {
+		color: var(--text-primary);
+		font-size: 0.9rem;
+		font-weight: 700;
+		text-align: center;
+		width: 100%;
+	}
+
+	.battery-progress-container {
+		width: 100%;
+		height: 1rem;
+		background-color: var(--border-secondary);
+		border-radius: 9999px;
+		overflow: hidden;
+	}
+
+	.battery-progress-fill {
+		height: 100%;
+		border-radius: 9999px;
+		transition:
+			width 0.5s ease-in-out,
+			background-color 0.5s ease-in-out;
+			display: flex;
+
+		&.battery-green {
+			background-color: v.$battery-green;
+		}
+		&.battery-orange {
+			background-color: v.$battery-orange;
+		}
+		&.battery-red {
+			background-color: v.$battery-red;
+		}
+	}
+}

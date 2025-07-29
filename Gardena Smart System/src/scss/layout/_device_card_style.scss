@@ -1,0 +1,124 @@
+@use 'sass:color';
+@use '../common/variables' as v;
+
+.device-card {
+	border: 1px solid var(--border-primary);
+	border-radius: 0.75rem;
+	padding: 1.5rem;
+	background-color: var(--bg-secondary);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+	display: flex;
+	flex-direction: column;
+
+	cursor: pointer;
+	text-decoration: none;
+	color: inherit;
+	transition:
+		transform 0.2s,
+		box-shadow 0.2s;
+
+	&:hover {
+		border-color: v.$primary-blue;
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+		transform: translateY(-3px);
+	}
+
+	@media (max-width: 767px) {
+		padding: 1rem;
+	}
+
+	&__content {
+		flex-grow: 1;
+	}
+
+	&__actions {
+		flex-shrink: 0;
+		margin-top: 1.5rem;
+		text-align: center;
+	}
+
+	.device-name {
+		font-size: 1.5rem;
+		font-weight: bold;
+		color: var(--text-primary);
+		margin-top: 0;
+		margin-bottom: 0.5rem;
+		text-decoration: none;
+
+		@media (max-width: 767px) {
+			font-size: 1.3rem;
+		}
+	}
+
+	.device-card-image {
+		max-width: 100%;
+		height: auto;
+		margin-top: 1rem;
+		margin-bottom: 1rem;
+		display: block;
+		margin-left: auto;
+		margin-right: auto;
+		object-fit: contain;
+		max-height: 120px;
+
+		@media (max-width: 767px) {
+			max-height: 100px;
+		}
+	}
+
+	.device-state {
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px dashed var(--border-primary);
+
+		.device-state-title {
+			font-size: 1rem;
+			font-weight: 600;
+			color: var(--text-primary);
+			margin-bottom: 0.5rem;
+
+			@media (max-width: 767px) {
+				font-size: 0.9rem;
+			}
+		}
+
+		p {
+			color: var(--text-light);
+		}
+
+		.device-state-list {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+
+			li {
+				font-size: 0.9rem;
+				color: var(--text-light);
+				line-height: 1.4;
+
+				@media (max-width: 767px) {
+					font-size: 0.8rem;
+				}
+
+				.font-semibold {
+					font-weight: 600;
+					color: var(--text-primary);
+				}
+
+				.status-ok {
+					color: v.$status-online;
+					font-weight: 700;
+				}
+				.status-error {
+					color: v.$status-offline;
+					font-weight: 700;
+				}
+				.status-warn {
+					color: v.$status-paused;
+					font-weight: 700;
+				}
+			}
+		}
+	}
+}

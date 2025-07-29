@@ -1,0 +1,74 @@
+@use 'sass:color';
+
+// Kolory bazowe
+$white: #ffffff;
+$black: #000000;
+
+// Odcienie szarości
+
+$gray-100: #f3f4f6;
+$gray-200: #e5e7eb;
+$gray-300: #d1d5db;
+$gray-400: #9ca3af;
+$gray-500: #6b7280;
+$gray-600: #4b5563;
+$gray-700: #374151;
+$gray-800: #1f2937;
+$gray-900: #111827;
+
+// Kolory brandowe i akcenty
+$primary-blue: #0dcaf0;
+$primary-green: #22c55e;
+$primary-orange: #f15922;
+$primary-orange-hover: #f37243;
+$error-red: #ef4444;
+
+// (Tryb jasny - domyślny)
+
+// Tła
+$bg-primary: $gray-100;
+$bg-secondary: $white;
+$bg-accent: $primary-blue;
+$bg-error: #fee2e2;
+
+// Tekst
+$text-primary: $gray-900;
+$text-secondary: $gray-700;
+$text-light: $gray-500;
+$text-on-accent: $white;
+$text-error: $error-red;
+$text-success: #15803d;
+
+// Ramki (Borders)
+$border-primary: $gray-300;
+$border-secondary: $gray-200;
+$border-accent: $primary-blue;
+
+// Przyciski
+$btn-primary-bg: $primary-orange;
+$btn-primary-text: $white;
+$btn-primary-hover-bg: $primary-orange-hover;
+
+// Statusy
+$status-online: $primary-green;
+$status-charging: #f59e0b; // Amber
+$status-offline: $error-red;
+$status-ready: $primary-green;
+$status-problem: $error-red;
+$status-unknown: $gray-400;
+$status-paused: #f59e0b;
+
+// Bateria
+$battery-green: $primary-green;
+$battery-orange: #f59e0b;
+$battery-red: $error-red;
+
+// ZMIENNE DLA TRYBU CIEMNEGO
+
+$dark-bg-primary: $gray-900; // gray-900
+$dark-bg-secondary: $gray-800; // gray-800
+$dark-text-primary: $gray-100;
+$dark-text-secondary: $gray-300;
+$dark-text-light: $gray-400;
+$dark-border-primary: $gray-700;
+$dark-border-secondary: $gray-600;

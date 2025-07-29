@@ -1,0 +1,419 @@
+@use 'sass:color';
+@use '../common/variables' as v;
+
+.device-title-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+}
+
+.edit-name-form {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.edit-name-input {
+	font-size: 2.5rem;
+	font-weight: 700;
+	color: var(--text-primary);
+	background-color: transparent;
+	border: none;
+	border-bottom: 2px solid v.$primary-blue;
+	outline: none;
+	text-align: center;
+	padding: 0.25rem;
+	width: 100%;
+	max-width: 400px;
+
+	@media (max-width: 767px) {
+		font-size: 1.8rem;
+	}
+}
+
+.btn-icon-action {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--text-light);
+	padding: 0.5rem;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	transition:
+		background-color 0.2s,
+		color 0.2s;
+
+	&:hover {
+		background-color: var(--bg-primary);
+	}
+	&.btn-save:hover {
+		color: v.$status-online;
+	}
+	&.btn-cancel:hover {
+		color: v.$status-offline;
+	}
+	&.btn-edit:hover {
+		color: v.$primary-blue;
+	}
+}
+
+.device-detail-page {
+	margin: 0 auto;
+	padding: 2rem;
+	background-color: var(--bg-secondary);
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+	max-width: 900px;
+
+	display: flex;
+	flex-direction: column;
+
+	&__main-content {
+		flex-grow: 1;
+	}
+	@media (min-width: 992px) {
+		min-width: 707px;
+	}
+	@media (max-width: 991px) {
+		max-width: 700px;
+		padding: 1.5rem;
+	}
+
+	@media (max-width: 767px) {
+		padding: 1rem;
+		max-width: 100%;
+		border-radius: 0;
+		box-shadow: none;
+		min-height: unset;
+		display: block;
+	}
+
+	h2 {
+		font-size: 2.5rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		text-align: center;
+
+		@media (max-width: 767px) {
+			font-size: 1.8rem;
+		}
+	}
+
+	.device-button-container {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
+		flex-wrap: wrap;
+		gap: 1rem;
+
+		@media (max-width: 767px) {
+			margin-bottom: 1.5rem;
+		}
+	}
+
+	.device-info-section {
+		margin-top: 1rem;
+		margin-bottom: 1rem;
+		padding: 1rem;
+		border: 1px solid var(--border-primary);
+		border-radius: 0.375rem;
+		background-color: var(--bg-primary);
+
+		p {
+			font-size: 0.9rem;
+			line-height: 1.6;
+			margin-bottom: 0.5rem;
+			word-break: break-all;
+			&:last-child {
+				margin-bottom: 0;
+			}
+		}
+
+		@media (max-width: 767px) {
+			padding: 0.75rem;
+			font-size: 0.9rem;
+		}
+
+		strong {
+			font-weight: bold;
+			margin-right: 0.5rem;
+		}
+	}
+
+	.detail-section {
+		margin-top: 2rem;
+		padding: 1.5rem;
+		background-color: var(--bg-primary);
+		border-radius: 0.5rem;
+
+		@media (max-width: 767px) {
+			padding: 1rem;
+			margin-top: 1.5rem;
+		}
+
+		h3 {
+			font-size: 1.5rem;
+			font-weight: bold;
+			color: var(--text-primary);
+			margin-top: 0;
+			margin-bottom: 1rem;
+
+			@media (max-width: 767px) {
+				font-size: 1.3rem;
+			}
+		}
+	}
+
+	.status-grid {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.75rem 1rem;
+		align-items: center;
+		font-size: 1rem;
+		padding: 1rem;
+		border-radius: 8px;
+
+		@media (max-width: 767px) {
+			grid-template-columns: 1fr;
+			gap: 0.5rem;
+			padding: 0.75rem;
+			font-size: 0.9rem;
+		}
+
+		.status-label {
+			font-weight: 700;
+			color: var(--text-primary);
+			justify-self: end;
+
+			@media (max-width: 767px) {
+				justify-self: start;
+			}
+		}
+
+		.status-value-wrapper {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 1rem;
+			flex-wrap: wrap;
+		}
+
+		.status-timestamp {
+			font-size: 0.8rem;
+			color: var(--text-light);
+			font-style: italic;
+			white-space: nowrap;
+		}
+
+		.status-value {
+			font-weight: 500;
+			&.status-ok {
+				color: v.$status-online;
+				font-weight: 700;
+			}
+			&.status-warn {
+				color: v.$status-paused;
+				font-weight: 700;
+			}
+			&.status-error {
+				color: v.$status-offline;
+				font-weight: 700;
+			}
+		}
+	}
+
+	.animation {
+		position: relative;
+		height: 100px;
+		overflow: hidden;
+		margin-top: 2rem;
+		background-color: #e0f9ff;
+		border-radius: 0.5rem;
+		display: flex;
+		align-items: flex-end;
+
+		@media (max-width: 767px) {
+			height: 80px;
+			margin-top: 1.5rem;
+		}
+
+		.img-grass {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			width: 200%;
+			height: 25px;
+			animation: animateGrass 8s linear infinite;
+			z-index: 1;
+			@media (max-width: 767px) {
+				height: 20px;
+			}
+		}
+		.img-mower {
+			position: absolute;
+			bottom: 10px;
+			left: 0;
+			height: 80px;
+			width: auto;
+			animation: animateMower 8s linear infinite;
+			z-index: 2;
+			@media (max-width: 767px) {
+				height: 60px;
+				bottom: 8px;
+			}
+		}
+		.img-wheel {
+			position: absolute;
+			bottom: 16px;
+			left: 35px;
+			width: 60px;
+			transform-origin: center;
+			animation:
+				animateWheel 1s linear infinite,
+				animateWheelPosition 8s linear infinite;
+			z-index: 3;
+			@media (max-width: 767px) {
+				width: 45px;
+				left: 25px;
+				bottom: 12px;
+			}
+		}
+	}
+
+	.control-form {
+		margin-top: 2rem;
+		padding: 2rem;
+		background-color: var(--bg-primary);
+		border-radius: 0.75rem;
+		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+
+		@media (max-width: 767px) {
+			padding: 1.5rem;
+			margin-top: 1.5rem;
+		}
+
+		h3 {
+			font-size: 1.6rem;
+			font-weight: bold;
+			color: var(--text-primary);
+			margin-bottom: 1.5rem;
+			@media (max-width: 767px) {
+				font-size: 1.4rem;
+				margin-bottom: 1rem;
+			}
+		}
+		form {
+			display: flex;
+			flex-direction: column;
+			gap: 1.25rem;
+		}
+	}
+
+	.actions-container {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--border-secondary);
+	}
+
+	.action-selection {
+		.btn-group {
+			.btn-toggle {
+				flex-grow: 1;
+			}
+		}
+	}
+
+	// ZMIANA: Dodajemy .action-selection > label do grupy, aby ujednolicić wygląd
+	.action-selection > label,
+	.valve-selection .valve-selection-label,
+	.duration-selection-container > label,
+	.duration-input-group label {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		font-size: 1rem;
+
+		@media (max-width: 767px) {
+			font-size: 0.9rem;
+		}
+	}
+
+	.duration-selection-container {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		border-top: 1px solid var(--border-secondary);
+		padding-top: 1.25rem;
+	}
+
+	.duration-input-group {
+		margin-top: 0;
+		.custom-duration-input {
+			padding: 0.5rem 1rem;
+			text-align: center;
+			border: 1px solid var(--border-primary);
+			background-color: var(--bg-secondary);
+			color: var(--text-primary);
+			border-radius: 0.375rem;
+			font-size: 0.875rem;
+			font-weight: 500;
+			max-width: 100px;
+			&:focus {
+				outline: none;
+				border-color: v.$primary-orange;
+			}
+		}
+	}
+}
+
+@keyframes animateGrass {
+	0% {
+		transform: translateX(0);
+	}
+	100% {
+		transform: translateX(-50%);
+	}
+}
+@keyframes animateMower {
+	0% {
+		transform: translateX(0%);
+	}
+	49% {
+		transform: translateX(calc(100% - 120px));
+	}
+	50% {
+		transform: translateX(0%);
+	}
+	100% {
+		transform: translateX(0%);
+	}
+}
+@keyframes animateWheel {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+@keyframes animateWheelPosition {
+	0% {
+		left: 35px;
+	}
+	49% {
+		left: calc(100% - 120px + 35px);
+	}
+	50% {
+		left: 35px;
+	}
+	100% {
+		left: 35px;
+	}
+}

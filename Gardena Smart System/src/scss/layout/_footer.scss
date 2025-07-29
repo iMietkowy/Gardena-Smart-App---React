@@ -1,0 +1,34 @@
+@use '../common/variables' as v;
+
+.app-footer {
+	color: v.$white;
+	text-align: center;
+	padding: 1rem 1.5rem;
+	font-size: 0.85rem;
+
+	p {
+		color: v.$white;
+	}
+
+	.app-footer-links {
+		display: flex;
+		justify-content: flex-end;
+		gap: 1rem;
+		margin-bottom: 0.5rem;
+
+		@media (max-width: 767px) {
+			justify-content: center;
+		}
+
+		a {
+			text-decoration: none;
+			color: inherit;
+			svg {
+				font-size: 1.8rem;
+				@media (max-width: 767px) {
+					font-size: 1.5rem;
+				}
+			}
+		}
+	}
+}
