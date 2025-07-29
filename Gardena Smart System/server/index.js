@@ -32,12 +32,17 @@ const frontendDistPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(frontendDistPath));
 console.log(`[INFO] Serwowanie plików frontendu z: ${frontendDistPath}`);
 
-// --- Definicje zmiennych i funkcji pomocniczych API ---
+// --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
 const GARDENA_CLIENT_SECRET = process.env.GARDENA_CLIENT_SECRET;
 const GARDENA_API_KEY = process.env.GARDENA_API_KEY;
 const GARDENA_AUTH_URL = 'https://api.authentication.husqvarnagroup.dev/v1/oauth2/token';
 const GARDENA_SMART_API_BASE_URL = 'https://api.smart.gardena.dev/v1';
+
+// --- Definicje zmiennych i funkcji pomocniczych API OPEN WEATHER MAP ---
+
+const OPENWEATHERMAP_API_KEY = process.env.OPENWEATHERMAP_API_KEY;
+const OPENWEATHERMAP_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
 let accessToken = null;
 let tokenExpiry = 0;
@@ -228,6 +233,36 @@ app.get('/api/gardena/devices', async (req, res) => {
 		res.status(500).json({ error: 'Nie udało się pobrać urządzeń Gardena.' });
 	}
 });
+
+app.get('/api/weather', async (req, res) => {
+	const {lat, lon} = req.query; // Przyjęcie z frontendu danych o szerokości i długości geograficznej
+	
+	if (!lat || !lon) {
+		return res.status(400).json({ error: 'Brak danych o lokalizacji.'});
+	}
+	if (!OPENWEATHERMAP_API_KEY) {
+		console.error('[Weather API] Brak Klucza API OPENWEATHERMAP w .env!');
+		return res.status(500).json({ error: 'Klucz API pogodowego nie jest skonfigurowany'})
+	}
+
+	try {
+		const weatherResponse = await axios.get(OPENWEATHERMAP_BASE_URL, {
+			params: {
+				lat: lat,
+				lon: lon,
+				appid: OPENWEATHERMAP_API_KEY,
+				units: 'metric',
+				lang: 'pl',
+			}
+		});
+		console.log(`[Weather API] Pogoda dla ${lat}, ${lon} pobrana pomyślnie`);
+		res.json(weatherResponse.data);
+		} catch (error) {
+			console.error('[Weather API] Błąd pobierania danych pogodowych:', error.response?.data || error.message);
+			res.status(500).json({ error: `Nie udało się pobrać danych pogodowych: ${error.response?.data?.message || error.message}` });
+}
+});
+
 
 app.post('/api/gardena/devices/:deviceId/control', async (req, res) => {
 	try {
