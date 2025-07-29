@@ -122,8 +122,8 @@ export const AppProvider = ({ children }) => {
        
 		const socket = new WebSocket(`ws://${window.location.hostname}:3001`);
 
-		socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
-		socket.onclose = (event) => console.log('[WebSocket] Rozłączono.', event.code, event.reason);
+		socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.'), console.trace('no zobaczmy');
+		socket.onclose = (event) => console.log('[WebSocket] Rozłączono.', event.code, event.reason, console.trace('no zobaczmy'));
 		socket.onerror = err => console.error('[WebSocket] Błąd:', err);
 
 		socket.onmessage = event => {
