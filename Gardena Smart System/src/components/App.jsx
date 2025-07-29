@@ -8,6 +8,7 @@ import '../scss/main.scss';
 import DeviceList from './DeviceList';
 import DeviceDetailPage from './DeviceDetailPage';
 import SchedulePage from './SchedulePage';
+import WeatherWidget from './WeatherWidget';
 import ToastNotification from './ToastNotification';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { getConsolidatedDeviceStatus } from '../utils/statusUtils'; 
@@ -18,6 +19,7 @@ import { library } from '@fortawesome/fontawesome-svg-core';
 import { fas } from '@fortawesome/free-solid-svg-icons'; 
 import { fab } from '@fortawesome/free-brands-svg-icons'; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'; 
+
 
 library.add(fas, fab);
 
@@ -60,6 +62,7 @@ const App = () => {
 			<h2>Gardena Smart System</h2>
 			<p>Tutaj możesz zarządzać swoimi urządzeniami!</p>
 			<button onClick={() => navigate('/devices')} className="btn btn--primary btn--pill">Moje urządzenia</button>
+			<WeatherWidget />
 		</div>
 	);
 	const DevicesPage = () => {

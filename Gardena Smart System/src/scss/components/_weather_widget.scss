@@ -1,0 +1,39 @@
+@use '../common/variables' as v;
+
+.weather-widget {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: var(--bg-primary); 
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    color: var(--text-primary);
+
+    h3 {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    p {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-secondary);
+    }
+
+    img {
+        margin-top: 1rem;
+        width: 60px;
+        height: 60px;
+    }
+
+    &.error-message {
+        color: v.$text-error;
+        background-color: v.$bg-error;
+        border: 1px solid v.$text-error;
+    }
+
+    &.loading-indicator {
+        color: var(--text-light);
+    }
+}

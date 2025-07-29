@@ -8,6 +8,7 @@ export const AppProvider = ({ children }) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+	
 
 	const { addNotificationToBell, showToastNotification } = useNotificationContext();
 
