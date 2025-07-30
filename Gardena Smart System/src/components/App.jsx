@@ -57,12 +57,16 @@ const App = () => {
 	const unreadNotificationsCount = notifications.filter(notif => !notif.read).length;
 
 
-	const HomePage = () => (
+const HomePage = () => (
 		<div className='home-page'>
-			<h2>Gardena Smart System</h2>
-			<p>Tutaj możesz zarządzać swoimi urządzeniami!</p>
-			<button onClick={() => navigate('/devices')} className="btn btn--primary btn--pill">Moje urządzenia</button>
-			<WeatherWidget />
+            <div className="home-page-main-content">
+                <h2>Gardena Smart System</h2>
+                <p>Tutaj możesz zarządzać swoimi urządzeniami!</p>
+                <button onClick={() => navigate('/devices')} className="btn btn--primary btn--pill">Moje urządzenia</button>
+            </div>
+            <div className="home-page-weather-widget-container">
+                <WeatherWidget />
+            </div>
 		</div>
 	);
 	const DevicesPage = () => {

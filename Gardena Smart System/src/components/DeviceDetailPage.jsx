@@ -45,6 +45,8 @@ const DeviceDetailPage = () => {
 	const [newDeviceName, setNewDeviceName] = useState('');
 	const [showDetails, setShowDetails] = useState(false);
 
+	const [isMowingAnimationActive, setIsMowingAnimationActive] = useState(false);
+
 	useEffect(() => {
 		if (device) setNewDeviceName(device.displayName);
 	}, [device]);
@@ -70,6 +72,29 @@ const DeviceDetailPage = () => {
 		}
 	};
 
+		useEffect(() => {
+			if (device && device.type === 'MOWER') {
+				const currentActivity = device.attributes?.activity?.value?.toUpperCase();
+
+				if (
+					currentActivity === 'MOWING' ||
+					currentActivity === 'OK_CUTTING' ||
+					currentActivity === 'SCHEDULED_MOWING' ||
+					currentActivity === 'OK_CUTTING_TIMER_OVERRIDDEN'
+				) {
+					setIsMowingAnimationActive(true);
+				} else if (
+					currentActivity === 'PARKED' ||
+					currentActivity === 'CHARGING' ||
+					currentActivity === 'IDLE' ||
+					currentActivity === 'PAUSED' ||
+					currentActivity === 'UNAVAILABLE'
+				) {
+					setIsMowingAnimationActive(false);
+				}
+			}
+		}, [device]);
+
 	const sendCommand = async (action, value = null, valveServiceId = undefined) => {
 		setIsSubmitting(true);
 		let payload = {
@@ -90,6 +115,14 @@ const DeviceDetailPage = () => {
 				throw new Error(errorData.error || `Serwer zwrócił błąd ${response.status}`);
 			}
 			showToastNotification('Komenda wysłana pomyślnie!', 'success');
+
+			if (device.type === 'MOWER') {
+				if (action === 'start') {
+					setIsMowingAnimationActive(true);
+				} else {
+					setIsMowingAnimationActive(false);
+				}
+			}
 		} catch (err) {
 			const errorMessage = `Błąd: ${err.message}`;
 			showToastNotification(errorMessage, 'error');
@@ -185,7 +218,7 @@ const DeviceDetailPage = () => {
 					}
 				}
 			} else {
-				// JEŚLI ŻADNE PODLEWANIE NIE JEST AKTYWNE
+				// Jeśli żadne podlewanie nie jest aktywne
 				let stateInfo = getStatusInfo(attributes.state?.value);
 				statusElements.push(
 					<StatusItem
@@ -424,7 +457,7 @@ const DeviceDetailPage = () => {
 					<h3>Aktualny stan:</h3>
 					{renderDeviceState(device.attributes)}
 				</div>
-				{device.type === 'MOWER' && (
+				{device.type === 'MOWER' && isMowingAnimationActive && (
 					<div className='animation'>
 						<img className='img-grass' src={grassImage} alt='Grass' />
 						<img className='img-mower' src={mowerImage} alt='Mower' />

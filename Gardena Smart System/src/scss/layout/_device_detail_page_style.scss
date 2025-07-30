@@ -259,7 +259,6 @@
 			left: 0;
 			height: 80px;
 			width: auto;
-			animation: animateMower 8s linear infinite;
 			z-index: 2;
 			@media (max-width: 767px) {
 				height: 60px;
@@ -329,7 +328,7 @@
 		}
 	}
 
-	// ZMIANA: Dodajemy .action-selection > label do grupy, aby ujednolicić wygląd
+
 	.action-selection > label,
 	.valve-selection .valve-selection-label,
 	.duration-selection-container > label,
@@ -381,39 +380,12 @@
 		transform: translateX(-50%);
 	}
 }
-@keyframes animateMower {
-	0% {
-		transform: translateX(0%);
-	}
-	49% {
-		transform: translateX(calc(100% - 120px));
-	}
-	50% {
-		transform: translateX(0%);
-	}
-	100% {
-		transform: translateX(0%);
-	}
-}
+
 @keyframes animateWheel {
 	0% {
 		transform: rotate(0deg);
 	}
 	100% {
 		transform: rotate(360deg);
-	}
-}
-@keyframes animateWheelPosition {
-	0% {
-		left: 35px;
-	}
-	49% {
-		left: calc(100% - 120px + 35px);
-	}
-	50% {
-		left: 35px;
-	}
-	100% {
-		left: 35px;
 	}
 }
