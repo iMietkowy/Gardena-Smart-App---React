@@ -1,39 +1,62 @@
+@use 'sass:color';
 @use '../common/variables' as v;
 
 .weather-widget {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background-color: var(--bg-primary); 
-    border-radius: 0.75rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    text-align: center;
-    color: var(--text-primary);
+	margin-top: 0.5rem;
+	padding: 1.5rem;
+	text-align: center;
+	color: var(--text-primary);
 
-    h3 {
-        font-size: 1.3rem;
-        margin-bottom: 1rem;
-        color: var(--text-primary);
+	h3 {
+		font-size: 1.3rem;
+		margin-bottom: 1rem;
+		color: var(--text-primary);
+	}
+
+	p {
+		font-size: 1rem;
+		margin-bottom: 0.5rem;
+		color: var(--text-secondary);
+	}
+
+	img {
+	
+		width: 60px;
+		height: 60px;
+	}
+
+    @media (max-width: 767px) {
+        margin-top: 0;
+        
     }
 
-    p {
-        font-size: 1rem;
-        margin-bottom: 0.5rem;
-        color: var(--text-secondary);
-    }
+	&.error-message {
+		color: v.$text-error;
+		background-color: v.$bg-error;
+		border: 1px solid v.$text-error;
+	}
 
-    img {
-        margin-top: 1rem;
-        width: 60px;
-        height: 60px;
-    }
+	&.loading-indicator {
+		color: var(--text-light);
+	}
+	.weather-warning {
+		font-weight: bold;
+		padding: 5px 10px;
+		border-radius: 5px;
+		margin-top: 10px;
+		font-size: 0.9em;
+	}
 
-    &.error-message {
-        color: v.$text-error;
-        background-color: v.$bg-error;
-        border: 1px solid v.$text-error;
-    }
+	.frost-warning {
+		color: v.$primary-blue;
+		background-color: color.adjust(v.$primary-blue, $lightness: 30%);
+		border: 1px solid v.$primary-blue;
+	}
 
-    &.loading-indicator {
-        color: var(--text-light);
-    }
+	.heavy-rain-warning,
+	.heavy-snow-warning {
+		color: v.$error-red;
+		background-color: v.$bg-error;
+		border: 1px solid v.$error-red;
+	}
 }

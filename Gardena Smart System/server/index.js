@@ -70,41 +70,37 @@ async function getAccessToken() {
 }
 
 async function updateDeviceName(serviceId, newName) {
-    const token = await getAccessToken();
-    const apiUrl = `${GARDENA_SMART_API_BASE_URL}/services/${serviceId}`;
+	const token = await getAccessToken();
+	const apiUrl = `${GARDENA_SMART_API_BASE_URL}/services/${serviceId}`;
 
-    const payload = {
-        data: {
-            id: serviceId,
-            type: "COMMON",
-            attributes: {
-                name: {
-                    value: newName
-                }
-            }
-        }
-    };
+	const payload = {
+		data: {
+			id: serviceId,
+			type: 'COMMON',
+			attributes: {
+				name: {
+					value: newName,
+				},
+			},
+		},
+	};
 
-    try {
-        await axios.put(apiUrl, payload, {
-            headers: {
+	try {
+		await axios.put(apiUrl, payload, {
+			headers: {
 				Authorization: `Bearer ${token}`,
 				'Authorization-Provider': 'husqvarna',
 				'X-Api-Key': GARDENA_API_KEY,
 				'Content-Type': 'application/vnd.api+json',
 			},
-        });
-        console.log(`Nazwa dla usługi ${serviceId} została zmieniona na "${newName}".`);
-        devicesCache = null;
-    } catch (error) {
-        console.error(
-			`Błąd podczas zmiany nazwy dla ${serviceId}:`,
-			error.response ? error.response.data : error.message
-		);
+		});
+		console.log(`Nazwa dla usługi ${serviceId} została zmieniona na "${newName}".`);
+		devicesCache = null;
+	} catch (error) {
+		console.error(`Błąd podczas zmiany nazwy dla ${serviceId}:`, error.response ? error.response.data : error.message);
 		throw error;
-    }
+	}
 }
-
 
 async function sendControlCommand(commandPayload) {
 	const { deviceId, action, value, deviceType, valveServiceId } = commandPayload;
@@ -151,10 +147,10 @@ async function sendControlCommand(commandPayload) {
 	}
 
 	const payload = {
-		data: { 
-			type: controlResourceType, 
-			id: uuidv4(), 
-			attributes: { command: commandType, ...commandData }
+		data: {
+			type: controlResourceType,
+			id: uuidv4(),
+			attributes: { command: commandType, ...commandData },
 		},
 	};
 
@@ -180,7 +176,7 @@ async function sendControlCommand(commandPayload) {
 const scheduledJobs = new Map();
 async function loadSchedulesAndRun() {
 	try {
-        for (const job of scheduledJobs.values()) {
+		for (const job of scheduledJobs.values()) {
 			job.cancel();
 		}
 		scheduledJobs.clear();
@@ -191,11 +187,11 @@ async function loadSchedulesAndRun() {
 			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
 			db.schedules.forEach(job => {
 				if (job.enabled) {
-                    const scheduledJob = schedule.scheduleJob(job.cron, () => sendControlCommand(job));
-				    scheduledJobs.set(job.id, scheduledJob);
-                }
+					const scheduledJob = schedule.scheduleJob(job.cron, () => sendControlCommand(job));
+					scheduledJobs.set(job.id, scheduledJob);
+				}
 			});
-            console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
+			console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
 		}
 	} catch (error) {
 		if (error.code === 'ENOENT') {
@@ -235,14 +231,14 @@ app.get('/api/gardena/devices', async (req, res) => {
 });
 
 app.get('/api/weather', async (req, res) => {
-	const {lat, lon} = req.query; // Przyjęcie z frontendu danych o szerokości i długości geograficznej
-	
+	const { lat, lon } = req.query; // Przyjęcie z frontendu danych o szerokości i długości geograficznej
+
 	if (!lat || !lon) {
-		return res.status(400).json({ error: 'Brak danych o lokalizacji.'});
+		return res.status(400).json({ error: 'Brak danych o lokalizacji.' });
 	}
 	if (!OPENWEATHERMAP_API_KEY) {
 		console.error('[Weather API] Brak Klucza API OPENWEATHERMAP w .env!');
-		return res.status(500).json({ error: 'Klucz API pogodowego nie jest skonfigurowany'})
+		return res.status(500).json({ error: 'Klucz API pogodowego nie jest skonfigurowany' });
 	}
 
 	try {
@@ -253,16 +249,17 @@ app.get('/api/weather', async (req, res) => {
 				appid: OPENWEATHERMAP_API_KEY,
 				units: 'metric',
 				lang: 'pl',
-			}
+			},
 		});
 		console.log(`[Weather API] Pogoda dla ${lat}, ${lon} pobrana pomyślnie`);
 		res.json(weatherResponse.data);
-		} catch (error) {
-			console.error('[Weather API] Błąd pobierania danych pogodowych:', error.response?.data || error.message);
-			res.status(500).json({ error: `Nie udało się pobrać danych pogodowych: ${error.response?.data?.message || error.message}` });
-}
+	} catch (error) {
+		console.error('[Weather API] Błąd pobierania danych pogodowych:', error.response?.data || error.message);
+		res
+			.status(500)
+			.json({ error: `Nie udało się pobrać danych pogodowych: ${error.response?.data?.message || error.message}` });
+	}
 });
-
 
 app.post('/api/gardena/devices/:deviceId/control', async (req, res) => {
 	try {
@@ -282,21 +279,20 @@ app.post('/api/gardena/devices/:deviceId/control', async (req, res) => {
 });
 
 app.patch('/api/gardena/devices/:serviceId/name', async (req, res) => {
-    try {
-        const { serviceId } = req.params;
-        const { name } = req.body;
+	try {
+		const { serviceId } = req.params;
+		const { name } = req.body;
 
-        if (!name || typeof name !== 'string' || name.trim() === '') {
-            return res.status(400).json({ error: 'Nazwa jest wymagana.' });
-        }
+		if (!name || typeof name !== 'string' || name.trim() === '') {
+			return res.status(400).json({ error: 'Nazwa jest wymagana.' });
+		}
 
-        await updateDeviceName(serviceId, name.trim());
-        res.json({ message: 'Nazwa urządzenia została pomyślnie zaktualizowana.' });
-    } catch (error) {
-        res.status(500).json({ error: `Nie udało się zmienić nazwy: ${error.message}`});
-    }
+		await updateDeviceName(serviceId, name.trim());
+		res.json({ message: 'Nazwa urządzenia została pomyślnie zaktualizowana.' });
+	} catch (error) {
+		res.status(500).json({ error: `Nie udało się zmienić nazwy: ${error.message}` });
+	}
 });
-
 
 app.get('/api/schedules', async (req, res) => {
 	try {
@@ -313,7 +309,9 @@ app.get('/api/schedules/next/:deviceId', async (req, res) => {
 	try {
 		const data = await fs.readFile(DB_PATH, 'utf8');
 		const db = JSON.parse(data);
-		const deviceSchedules = db.schedules.filter(job => (job.deviceId === deviceId || job.valveServiceId === deviceId) && job.enabled);
+		const deviceSchedules = db.schedules.filter(
+			job => (job.deviceId === deviceId || job.valveServiceId === deviceId) && job.enabled
+		);
 		if (deviceSchedules.length === 0) {
 			return res.json({ nextInvocation: null });
 		}
@@ -351,96 +349,95 @@ app.post('/api/schedules', async (req, res) => {
 });
 
 app.patch('/api/schedules/:id/toggle', async (req, res) => {
-    const { id } = req.params;
-    const { enabled } = req.body;
+	const { id } = req.params;
+	const { enabled } = req.body;
 
-    if (typeof enabled !== 'boolean') {
-        return res.status(400).json({ error: 'Nieprawidłowy status "enabled". Oczekiwano wartości boolean.' });
-    }
+	if (typeof enabled !== 'boolean') {
+		return res.status(400).json({ error: 'Nieprawidłowy status "enabled". Oczekiwano wartości boolean.' });
+	}
 
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        const jobIndex = db.schedules.findIndex(job => job.id === id);
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		const jobIndex = db.schedules.findIndex(job => job.id === id);
 
-        if (jobIndex === -1) {
-            return res.status(404).json({ error: 'Nie znaleziono harmonogramu.' });
-        }
+		if (jobIndex === -1) {
+			return res.status(404).json({ error: 'Nie znaleziono harmonogramu.' });
+		}
 
-        db.schedules[jobIndex].enabled = enabled;
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        
-        await loadSchedulesAndRun();
+		db.schedules[jobIndex].enabled = enabled;
+		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
 
-        res.status(200).json(db.schedules[jobIndex]);
-    } catch (error) {
-        res.status(500).json({ error: 'Nie można zaktualizować harmonogramu.' });
-    }
+		await loadSchedulesAndRun();
+
+		res.status(200).json(db.schedules[jobIndex]);
+	} catch (error) {
+		res.status(500).json({ error: 'Nie można zaktualizować harmonogramu.' });
+	}
 });
 
 app.patch('/api/schedules/all/disable', async (req, res) => {
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => job.enabled = false);
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: 'Wszystkie harmonogramy zostały wstrzymane.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wstrzymać harmonogramów.' });
-    }
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		db.schedules.forEach(job => (job.enabled = false));
+		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+		await loadSchedulesAndRun();
+		res.status(200).json({ message: 'Wszystkie harmonogramy zostały wstrzymane.' });
+	} catch (error) {
+		res.status(500).json({ error: 'Nie udało się wstrzymać harmonogramów.' });
+	}
 });
 
 app.patch('/api/schedules/device/:deviceId/disable', async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => {
-            if (job.deviceId === deviceId) {
-                job.enabled = false;
-            }
-        });
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały wstrzymane.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wstrzymać harmonogramów dla urządzenia.' });
-    }
+	const { deviceId } = req.params;
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		db.schedules.forEach(job => {
+			if (job.deviceId === deviceId) {
+				job.enabled = false;
+			}
+		});
+		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+		await loadSchedulesAndRun();
+		res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały wstrzymane.` });
+	} catch (error) {
+		res.status(500).json({ error: 'Nie udało się wstrzymać harmonogramów dla urządzenia.' });
+	}
 });
 
 // NOWE ENDPOINTY: Do masowego wznawiania harmonogramów
 app.patch('/api/schedules/all/enable', async (req, res) => {
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => job.enabled = true);
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: 'Wszystkie harmonogramy zostały wznowione.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wznowić harmonogramów.' });
-    }
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		db.schedules.forEach(job => (job.enabled = true));
+		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+		await loadSchedulesAndRun();
+		res.status(200).json({ message: 'Wszystkie harmonogramy zostały wznowione.' });
+	} catch (error) {
+		res.status(500).json({ error: 'Nie udało się wznowić harmonogramów.' });
+	}
 });
 
 app.patch('/api/schedules/device/:deviceId/enable', async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => {
-            if (job.deviceId === deviceId) {
-                job.enabled = true;
-            }
-        });
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały wznowione.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wznowić harmonogramów dla urządzenia.' });
-    }
+	const { deviceId } = req.params;
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		db.schedules.forEach(job => {
+			if (job.deviceId === deviceId) {
+				job.enabled = true;
+			}
+		});
+		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+		await loadSchedulesAndRun();
+		res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały wznowione.` });
+	} catch (error) {
+		res.status(500).json({ error: 'Nie udało się wznowić harmonogramów dla urządzenia.' });
+	}
 });
-
 
 app.delete('/api/schedules/all', async (req, res) => {
 	try {
@@ -456,18 +453,18 @@ app.delete('/api/schedules/all', async (req, res) => {
 });
 
 app.delete('/api/schedules/device/:deviceId', async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        const schedulesToKeep = db.schedules.filter(job => job.deviceId !== deviceId);
-        db.schedules = schedulesToKeep;
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
+	const { deviceId } = req.params;
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		const schedulesToKeep = db.schedules.filter(job => job.deviceId !== deviceId);
+		db.schedules = schedulesToKeep;
+		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+		await loadSchedulesAndRun();
 		res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały usunięte.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie można usunąć harmonogramów dla urządzenia.' });
-    }
+	} catch (error) {
+		res.status(500).json({ error: 'Nie można usunąć harmonogramów dla urządzenia.' });
+	}
 });
 
 app.delete('/api/schedules/:id', async (req, res) => {
@@ -477,8 +474,8 @@ app.delete('/api/schedules/:id', async (req, res) => {
 		const db = JSON.parse(data);
 		db.schedules = db.schedules.filter(job => job.id !== id);
 		await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-		
-        await loadSchedulesAndRun();
+
+		await loadSchedulesAndRun();
 		res.status(200).json({ message: 'Harmonogram usunięty.' });
 	} catch (error) {
 		res.status(500).json({ error: 'Nie można usunąć harmonogramu.' });
