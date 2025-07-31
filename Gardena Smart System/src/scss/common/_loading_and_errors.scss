@@ -26,6 +26,12 @@
 		animation: spin 1s linear infinite;
 		margin: 0 auto 1.5rem;
 
+		&.small {
+			width: 25px;
+			height: 25px;
+			margin: 0 auto 0.5rem;
+		}
+
 		@media (max-width: 767px) {
 			width: 30px;
 			height: 30px;
@@ -52,6 +58,13 @@
 		@media (max-width: 767px) {
 			font-size: 1.3rem;
 		}
+
+		&.-small {
+                font-size: 1.1rem; 
+                color: v.$error-red;
+                font-weight: 700;
+                margin-bottom: 0.25rem;
+            }
 	}
 }
 

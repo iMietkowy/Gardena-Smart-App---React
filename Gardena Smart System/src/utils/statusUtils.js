@@ -12,6 +12,7 @@ export const getStatusInfo = value => {
 	switch (upperValue) {
 		case 'ONLINE':
 		case 'OK':
+		case 'ON':
 		case 'MOWING':
 		case 'OK_CUTTING':
 		case 'OK_CUTTING_TIMER_OVERRIDDEN':
@@ -28,6 +29,7 @@ export const getStatusInfo = value => {
 			className = 'status-ok';
 			break;
 		case 'PAUSED':
+		case 'OFF':	
 		case 'IDLE':
 		case 'PARKED':
 		case 'PARKED_TIMER':
@@ -133,6 +135,12 @@ export const getStatusInfo = value => {
 			break;
 		case 'SEARCHING_FOR_SATELLITES':
 			text = 'Szukam satelity';
+			break;
+			case 'ON':
+			text = 'Włączony';
+			break;
+			case 'OFF':
+			text = 'Wyłączony';
 			break;
 		case 'NONE':
 			text = 'Brak';

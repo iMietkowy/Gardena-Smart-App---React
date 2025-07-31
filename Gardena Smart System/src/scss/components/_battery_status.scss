@@ -3,6 +3,13 @@
 .battery-status-bar {
 	margin-top: 1rem;
 	width: 100%;
+	position: relative;
+
+	  .battery-progress-wrapper {
+        position: relative; 
+        width: 100%;
+        height: 1rem; 
+    }
 
 	.battery-text {
 		color: var(--text-primary);
@@ -10,6 +17,11 @@
 		font-weight: 700;
 		text-align: center;
 		width: 100%;
+		  position: absolute; 
+        top: 50%;            
+        left: 50%;           
+        transform: translate(-50%, -50%); 
+        white-space: nowrap; 
 	}
 
 	.battery-progress-container {
@@ -26,7 +38,7 @@
 		transition:
 			width 0.5s ease-in-out,
 			background-color 0.5s ease-in-out;
-			display: flex;
+			
 
 		&.battery-green {
 			background-color: v.$battery-green;
