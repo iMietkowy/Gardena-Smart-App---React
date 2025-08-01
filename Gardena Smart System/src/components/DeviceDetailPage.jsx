@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { useNotificationContext } from '../context/NotificationContext.jsx';
-import { Edit2, Save, X } from 'lucide-react';
 import MowerControls from './MowerControls';
 import WateringControls from './WateringControls';
 import PlugControls from './PlugControls';
@@ -12,6 +11,7 @@ import { getStatusInfo, getMowerErrorInfo } from '../utils/statusUtils';
 import mowerImage from '../img/mower.png';
 import wheelImage from '../img/wheel.png';
 import grassImage from '../img/grass.png';
+import ParkMowerModal from './ParkMowerModal';
 
 const formatTimestamp = isoString => {
 	if (!isoString) return '';
@@ -41,59 +41,8 @@ const DeviceDetailPage = () => {
 	const device = devices.find(d => d.id === deviceId);
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [isEditingName, setIsEditingName] = useState(false);
-	const [newDeviceName, setNewDeviceName] = useState('');
 	const [showDetails, setShowDetails] = useState(false);
-
-	const [isMowingAnimationActive, setIsMowingAnimationActive] = useState(false);
-
-	useEffect(() => {
-		if (device) setNewDeviceName(device.displayName);
-	}, [device]);
-
-	const handleSaveName = async () => {
-		if (!newDeviceName || newDeviceName.trim() === '') {
-			showToastNotification('Nazwa nie może być pusta.', 'error');
-			return;
-		}
-		try {
-			const response = await fetch(`/api/gardena/devices/${device.commonServiceId}/name`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newDeviceName }),
-			});
-			if (!response.ok) throw new Error((await response.json()).error || 'Błąd serwera');
-			showToastNotification('Nazwa została pomyślnie zmieniona!', 'success');
-			setIsEditingName(false);
-			await fetchGardenaDevices();
-		} catch (err) {
-			showToastNotification(`Błąd: ${err.message}`, 'error');
-			addNotificationToBell(`Błąd zmiany nazwy ${device.displayName}: ${err.message}`, 'error');
-		}
-	};
-
-		useEffect(() => {
-			if (device && device.type === 'MOWER') {
-				const currentActivity = device.attributes?.activity?.value?.toUpperCase();
-
-				if (
-					currentActivity === 'MOWING' ||
-					currentActivity === 'OK_CUTTING' ||
-					currentActivity === 'SCHEDULED_MOWING' ||
-					currentActivity === 'OK_CUTTING_TIMER_OVERRIDDEN'
-				) {
-					setIsMowingAnimationActive(true);
-				} else if (
-					currentActivity === 'PARKED' ||
-					currentActivity === 'CHARGING' ||
-					currentActivity === 'IDLE' ||
-					currentActivity === 'PAUSED' ||
-					currentActivity === 'UNAVAILABLE'
-				) {
-					setIsMowingAnimationActive(false);
-				}
-			}
-		}, [device]);
+	const [showParkMowerModal, setShowParkMowerModal] = useState(false);
 
 	const sendCommand = async (action, value = null, valveServiceId = undefined) => {
 		setIsSubmitting(true);
@@ -115,14 +64,6 @@ const DeviceDetailPage = () => {
 				throw new Error(errorData.error || `Serwer zwrócił błąd ${response.status}`);
 			}
 			showToastNotification('Komenda wysłana pomyślnie!', 'success');
-
-			if (device.type === 'MOWER') {
-				if (action === 'start') {
-					setIsMowingAnimationActive(true);
-				} else {
-					setIsMowingAnimationActive(false);
-				}
-			}
 		} catch (err) {
 			const errorMessage = `Błąd: ${err.message}`;
 			showToastNotification(errorMessage, 'error');
@@ -159,9 +100,8 @@ const DeviceDetailPage = () => {
 			);
 		};
 
-		const statusElements = []; // Lista elementów statusu do renderowania
+		const statusElements = [];
 
-		// 1. Stan połączenia (zawsze z głównego urządzenia)
 		if (attributes.rfLinkState?.value) {
 			const { className, text } = getStatusInfo(attributes.rfLinkState.value);
 			statusElements.push(
@@ -175,7 +115,6 @@ const DeviceDetailPage = () => {
 			);
 		}
 
-		// 2. Logika dla SMART_WATERING_COMPUTER
 		if (device.type === 'SMART_WATERING_COMPUTER') {
 			const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
 			const activeValve = device._valveServices?.find(v =>
@@ -183,7 +122,6 @@ const DeviceDetailPage = () => {
 			);
 
 			if (activeValve) {
-				// Jeśli którekolwiek podlewanie jest aktywne
 				const valveName = activeValve.attributes?.name?.value || `Zawór ${activeValve.id.split(':').pop()}`;
 				statusElements.push(
 					<StatusItem
@@ -203,8 +141,6 @@ const DeviceDetailPage = () => {
 						timestamp={activeValve.attributes?.activity?.timestamp}
 					/>
 				);
-
-				// Czas zakończenia podlewania
 				const durationInfo = activeValve.attributes?.duration;
 				if (durationInfo && durationInfo.value > 0) {
 					const startTime = new Date(durationInfo.timestamp);
@@ -218,7 +154,6 @@ const DeviceDetailPage = () => {
 					}
 				}
 			} else {
-				// Jeśli żadne podlewanie nie jest aktywne
 				let stateInfo = getStatusInfo(attributes.state?.value);
 				statusElements.push(
 					<StatusItem
@@ -229,7 +164,6 @@ const DeviceDetailPage = () => {
 						className={stateInfo.className}
 					/>
 				);
-
 				let activityInfo = getStatusInfo(attributes.activity?.value);
 				statusElements.push(
 					<StatusItem
@@ -240,8 +174,6 @@ const DeviceDetailPage = () => {
 						className={activityInfo.className}
 					/>
 				);
-
-				// Logika do wyświetlania ostatniego podlewania (TYLKO ZAMKNIĘTE ZAWORY Z TIMESTAMPEM)
 				const lastClosedValveActivity = device._valveServices
 					?.filter(v => v.attributes?.activity?.value?.toUpperCase() === 'CLOSED' && v.attributes?.activity?.timestamp)
 					.sort((a, b) => new Date(b.attributes.activity.timestamp) - new Date(a.attributes.activity.timestamp))[0];
@@ -308,7 +240,6 @@ const DeviceDetailPage = () => {
 			}
 		}
 
-		// Błędy dla kosiarek
 		const errorCode = attributes.lastErrorCode?.value;
 		if (
 			device?.type === 'MOWER' &&
@@ -330,7 +261,6 @@ const DeviceDetailPage = () => {
 			}
 		}
 
-		// Bateria (tylko dla kosiarek)
 		const batteryLevel = device.type === 'MOWER' ? attributes.batteryLevel?.value : undefined;
 		if (batteryLevel !== undefined) {
 			statusElements.push(
@@ -360,12 +290,12 @@ const DeviceDetailPage = () => {
 		);
 	};
 
-	const renderDeviceControls = () => {
+	const renderDeviceControls = useCallback(() => {
 		switch (device?.type) {
 			case 'MOWER':
-				return <MowerControls onCommand={sendCommand} isSubmitting={isSubmitting} />;
+				return <MowerControls onCommand={sendCommand} />;
 			case 'SMART_WATERING_COMPUTER':
-				return <WateringControls device={device} onCommand={sendCommand} isSubmitting={isSubmitting} />;
+				return <WateringControls device={device} onCommand={sendCommand} />;
 			case 'SMART_PLUG':
 				return <PlugControls onCommand={sendCommand} isSubmitting={isSubmitting} />;
 			default:
@@ -375,7 +305,7 @@ const DeviceDetailPage = () => {
 					</p>
 				);
 		}
-	};
+	}, [device, sendCommand, isSubmitting]);
 
 	if (loading && !device) {
 		return (
@@ -397,35 +327,14 @@ const DeviceDetailPage = () => {
 		);
 	}
 
+    const isMowerActive = device.type === 'MOWER' && 
+                        ['MOWING', 'OK_CUTTING', 'SCHEDULED_MOWING'].includes(device.attributes?.activity?.value?.toUpperCase());
+
 	return (
 		<div className='device-detail-page'>
 			<div className='device-detail-page__main-content'>
 				<div className='device-title-container'>
-					{isEditingName ? (
-						<div className='edit-name-form'>
-							<input
-								type='text'
-								value={newDeviceName}
-								onChange={e => setNewDeviceName(e.target.value)}
-								className='edit-name-input'
-							/>
-							<button onClick={handleSaveName} className='btn-icon-action btn-save'>
-								<Save size={20} />
-							</button>
-							<button onClick={() => setIsEditingName(false)} className='btn-icon-action btn-cancel'>
-								<X size={20} />
-							</button>
-						</div>
-					) : (
-						<>
-							<h2>{device.displayName || 'Nieznane urządzenie'}</h2>
-							{device.commonServiceId && (
-								<button onClick={() => setIsEditingName(true)} className='btn-icon-action btn-edit'>
-									<Edit2 size={20} />
-								</button>
-							)}
-						</>
-					)}
+                    <h2>{device.displayName || 'Nieznane urządzenie'}</h2>
 				</div>
 
 				<div className='device-button-container'>
@@ -443,9 +352,6 @@ const DeviceDetailPage = () => {
 							<strong>ID Urządzenia:</strong> {device.id}
 						</p>
 						<p>
-							<strong>ID Usługi (do zmiany nazwy):</strong> {device.commonServiceId}
-						</p>
-						<p>
 							<strong>Typ:</strong> {device.type || 'N/A'}
 						</p>
 						<p>
@@ -457,7 +363,7 @@ const DeviceDetailPage = () => {
 					<h3>Aktualny stan:</h3>
 					{renderDeviceState(device.attributes)}
 				</div>
-				{device.type === 'MOWER' && isMowingAnimationActive && (
+				{isMowerActive && (
 					<div className='animation'>
 						<img className='img-grass' src={grassImage} alt='Grass' />
 						<img className='img-mower' src={mowerImage} alt='Mower' />
@@ -480,6 +386,16 @@ const DeviceDetailPage = () => {
 						))}
 					</div>
 				</div>
+			)}
+			{showParkMowerModal && (
+				<ParkMowerModal
+					onConfirm={action => {
+						sendCommand(action);
+						setShowParkMowerModal(false);
+					}}
+					onCancel={() => setShowParkMowerModal(false)}
+					isSubmitting={isSubmitting}
+				/>
 			)}
 		</div>
 	);

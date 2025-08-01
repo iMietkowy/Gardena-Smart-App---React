@@ -69,39 +69,6 @@ async function getAccessToken() {
 	}
 }
 
-async function updateDeviceName(serviceId, newName) {
-	const token = await getAccessToken();
-	const apiUrl = `${GARDENA_SMART_API_BASE_URL}/services/${serviceId}`;
-
-	const payload = {
-		data: {
-			id: serviceId,
-			type: 'COMMON',
-			attributes: {
-				name: {
-					value: newName,
-				},
-			},
-		},
-	};
-
-	try {
-		await axios.put(apiUrl, payload, {
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Authorization-Provider': 'husqvarna',
-				'X-Api-Key': GARDENA_API_KEY,
-				'Content-Type': 'application/vnd.api+json',
-			},
-		});
-		console.log(`Nazwa dla usługi ${serviceId} została zmieniona na "${newName}".`);
-		devicesCache = null;
-	} catch (error) {
-		console.error(`Błąd podczas zmiany nazwy dla ${serviceId}:`, error.response ? error.response.data : error.message);
-		throw error;
-	}
-}
-
 async function sendControlCommand(commandPayload) {
 	const { deviceId, action, value, deviceType, valveServiceId } = commandPayload;
 	const token = await getAccessToken();
@@ -278,21 +245,6 @@ app.post('/api/gardena/devices/:deviceId/control', async (req, res) => {
 	}
 });
 
-app.patch('/api/gardena/devices/:serviceId/name', async (req, res) => {
-	try {
-		const { serviceId } = req.params;
-		const { name } = req.body;
-
-		if (!name || typeof name !== 'string' || name.trim() === '') {
-			return res.status(400).json({ error: 'Nazwa jest wymagana.' });
-		}
-
-		await updateDeviceName(serviceId, name.trim());
-		res.json({ message: 'Nazwa urządzenia została pomyślnie zaktualizowana.' });
-	} catch (error) {
-		res.status(500).json({ error: `Nie udało się zmienić nazwy: ${error.message}` });
-	}
-});
 
 app.get('/api/schedules', async (req, res) => {
 	try {

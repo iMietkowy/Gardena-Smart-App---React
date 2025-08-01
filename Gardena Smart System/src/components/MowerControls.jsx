@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { useNotificationContext } from '../context/NotificationContext';
+import { useControlForm } from '../hooks/useControlForm';
 
-const MowerControls = ({ onCommand, isSubmitting }) => {
-	const { showToastNotification } = useNotificationContext();
-	const [controlAction, setControlAction] = useState('');
-	const [controlValue, setControlValue] = useState('60');
+const MowerControls = ({ onCommand }) => {
+	const {
+		isSubmitting,
+		controlAction,
+		setControlAction,
+		controlValue,
+		setControlValue,
+		handleSubmit,
+		showToastNotification,
+	} = useControlForm(onCommand);
+
 	const [customHoursInput, setCustomHoursInput] = useState('1');
 
 	const durationPresets = [
@@ -15,14 +22,21 @@ const MowerControls = ({ onCommand, isSubmitting }) => {
 	];
 	const maxDuration = 6;
 
-	const handleSubmit = e => {
+	const handleActionChange = action => {
+		setControlAction(action);
+		if (action !== 'start') {
+			setControlValue(null);
+		}
+	};
+
+	const handleSubmitForm = e => {
 		e.preventDefault();
 		if (!controlAction) {
 			showToastNotification('Proszę wybrać akcję do wykonania.', 'error');
 			return;
 		}
 		const valueToSend = controlAction === 'start' ? controlValue : null;
-		onCommand(controlAction, valueToSend);
+		handleSubmit(controlAction, valueToSend);
 	};
 
 	const getButtonText = () => {
@@ -42,28 +56,28 @@ const MowerControls = ({ onCommand, isSubmitting }) => {
 	};
 
 	return (
-		<form onSubmit={handleSubmit}>
+		<form onSubmit={handleSubmitForm}>
 			<div className='actions-container'>
 				<div className='action-selection'>
 					<label>Akcje:</label>
 					<div className='btn-group'>
 						<button
 							type='button'
-							onClick={() => setControlAction('start')}
+							onClick={() => handleActionChange('start')}
 							className={`btn-toggle ${controlAction === 'start' ? 'active' : ''}`}
 						>
 							Start
 						</button>
 						<button
 							type='button'
-							onClick={() => setControlAction('parkUntilNextTask')}
+							onClick={() => handleActionChange('parkUntilNextTask')}
 							className={`btn-toggle ${controlAction === 'parkUntilNextTask' ? 'active' : ''}`}
 						>
 							Parkuj do zadania
 						</button>
 						<button
 							type='button'
-							onClick={() => setControlAction('parkUntilFurtherNotice')}
+							onClick={() => handleActionChange('parkUntilFurtherNotice')}
 							className={`btn-toggle ${controlAction === 'parkUntilFurtherNotice' ? 'active' : ''}`}
 						>
 							Parkuj do odwołania

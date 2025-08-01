@@ -1,20 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useNotificationContext } from '../context/NotificationContext';
+import { useControlForm } from '../hooks/useControlForm';
 
-const WateringControls = ({ device, onCommand, isSubmitting }) => {
-	const { showToastNotification } = useNotificationContext();
+const WateringControls = ({ device, onCommand }) => {
+	const {
+		isSubmitting,
+		controlValue,
+		setControlValue,
+		handleSubmit,
+		showToastNotification,
+	} = useControlForm(onCommand);
+
 	const [selectedValveServiceId, setSelectedValveServiceId] = useState('');
-	const [controlValue, setControlValue] = useState('');
 	const [customMinutesInput, setCustomMinutesInput] = useState('');
 
 	useEffect(() => {
-		if (device?._valveServices?.length > 0) {
+		if (device._valveServices?.length > 0) {
 			const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
 			const activeValve = device._valveServices.find(v =>
 				activeWateringStates.includes(v.attributes?.activity?.value?.toUpperCase())
 			);
 			if (activeValve) {
 				setSelectedValveServiceId(activeValve.id);
+			} else {
+				setSelectedValveServiceId(device._valveServices[0].id);
 			}
 		} else {
 			setSelectedValveServiceId('');
@@ -48,7 +56,23 @@ const WateringControls = ({ device, onCommand, isSubmitting }) => {
 			showToastNotification('Proszę ustawić czas trwania podlewania.', 'error');
 			return;
 		}
-		onCommand('startWatering', controlValue, selectedValveServiceId);
+		handleSubmit('startWatering', controlValue, selectedValveServiceId);
+	};
+
+	const handleStopWatering = () => {
+		let valveToStop = selectedValveServiceId;
+		if (!valveToStop) {
+			const activeStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
+			const activeValve = device._valveServices.find(v =>
+				activeStates.includes(v.attributes?.activity?.value?.toUpperCase())
+			);
+			if (activeValve) {
+				valveToStop = activeValve.id;
+			}
+		}
+		if (valveToStop) {
+			handleSubmit('stopWatering', null, valveToStop);
+		}
 	};
 
 	const getPrimaryButtonText = () => {
@@ -148,22 +172,9 @@ const WateringControls = ({ device, onCommand, isSubmitting }) => {
 				</button>
 				<button
 					type='button'
-					onClick={() => {
-						if (!selectedValveServiceId && isAnyValveActive()) {
-							const activeStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
-							const activeValve = device._valveServices.find(v =>
-								activeStates.includes(v.attributes?.activity?.value?.toUpperCase())
-							);
-							if (activeValve) {
-								onCommand('stopWatering', null, activeValve.id);
-								return;
-							}
-						}
-
-						onCommand('stopWatering', null, selectedValveServiceId);
-					}}
+					onClick={handleStopWatering}
 					className='btn btn--danger btn--rounded'
-					disabled={isSubmitting || !selectedValveServiceId || !isAnyValveActive()}
+					disabled={isSubmitting || !isAnyValveActive()}
 				>
 					Stop
 				</button>
