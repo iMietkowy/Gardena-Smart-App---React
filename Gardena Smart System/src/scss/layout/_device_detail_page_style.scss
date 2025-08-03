@@ -211,18 +211,6 @@
 
 		.status-value {
 			font-weight: 500;
-			&.status-ok {
-				color: v.$status-online;
-				font-weight: 700;
-			}
-			&.status-warn {
-				color: v.$status-paused;
-				font-weight: 700;
-			}
-			&.status-error {
-				color: v.$status-offline;
-				font-weight: 700;
-			}
 		}
 	}
 
@@ -327,7 +315,6 @@
 			}
 		}
 	}
-
 
 	.action-selection > label,
 	.valve-selection .valve-selection-label,

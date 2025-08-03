@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// NOWE: Konfiguracja sesji.
+//Konfiguracja sesji.
 const sessionParser = session({
     secret: process.env.SESSION_SECRET || 'your_session_secret_key',
     resave: false,
@@ -38,7 +38,7 @@ const sessionParser = session({
 });
 app.use(sessionParser);
 
-// NOWE: Uproszczona "baza danych" użytkowników
+//Uproszczona "baza danych" użytkowników
 const users = [
     { id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }
 ];
@@ -225,9 +225,14 @@ app.post('/api/login', async (req, res) => {
         return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-        return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
+    try {
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
+        }
+    } catch (error) {
+        console.error('Błąd podczas porównywania hasła:', error);
+        return res.status(500).json({ message: 'Wystąpił błąd serwera. Spróbuj ponownie.' });
     }
 
     req.session.userId = user.id;

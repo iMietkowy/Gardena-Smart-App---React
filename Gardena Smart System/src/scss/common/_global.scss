@@ -31,6 +31,20 @@ html {
   --border-secondary: #{v.$dark-border-secondary};
   --logo-filter: invert(1) hue-rotate(180deg);
 
+
+  .status-ok {
+    color: v.$primary-green;
+    font-weight: 600;
+}
+.status-warn {
+    color: v.$status-paused;
+    font-weight: 600;
+}
+.status-error {
+    color: v.$status-offline;
+    font-weight: 600;
+}
+
   
   .btn--secondary {
     background-color: v.$gray-600; 

@@ -100,24 +100,6 @@
 				@media (max-width: 767px) {
 					font-size: 0.8rem;
 				}
-
-				.font-semibold {
-					font-weight: 600;
-					color: var(--text-primary);
-				}
-
-				.status-ok {
-					color: v.$status-online;
-					font-weight: 700;
-				}
-				.status-error {
-					color: v.$status-offline;
-					font-weight: 700;
-				}
-				.status-warn {
-					color: v.$status-paused;
-					font-weight: 700;
-				}
 			}
 		}
 	}
