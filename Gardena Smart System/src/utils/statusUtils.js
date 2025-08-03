@@ -29,7 +29,7 @@ export const getStatusInfo = value => {
 			className = 'status-ok';
 			break;
 		case 'PAUSED':
-		case 'OFF':	
+		case 'OFF':
 		case 'IDLE':
 		case 'PARKED':
 		case 'PARKED_TIMER':
@@ -136,10 +136,10 @@ export const getStatusInfo = value => {
 		case 'SEARCHING_FOR_SATELLITES':
 			text = 'Szukam satelity';
 			break;
-			case 'ON':
+		case 'ON':
 			text = 'Włączony';
 			break;
-			case 'OFF':
+		case 'OFF':
 			text = 'Wyłączony';
 			break;
 		case 'NONE':
@@ -501,22 +501,22 @@ export const getConsolidatedDeviceStatus = device => {
 	const activity = attributes?.activity?.value?.toLowerCase();
 
 	if (rfLinkState === 'offline' || generalState === 'offline') {
-		statusMessage = `: OFFLINE`;
+		statusMessage = `OFFLINE`;
 		dotClass = 'status-offline';
 	} else if (rfLinkState === 'online') {
 		if (device.type === 'MOWER') {
 			if (generalState === 'ok') {
 				if (activity === 'mowing') {
-					statusMessage = `: KOSZENIE AKTYWNE`;
+					statusMessage = `KOSZENIE AKTYWNE`;
 					dotClass = 'status-online';
 				} else if (activity === 'charging') {
-					statusMessage = `: ŁADOWANIE (${attributes?.batteryLevel?.value !== undefined ? attributes.batteryLevel.value : 'N/A'}%)`;
+					statusMessage = `ŁADOWANIE (${attributes?.batteryLevel?.value !== undefined ? attributes.batteryLevel.value : 'N/A'}%)`;
 					dotClass = 'status-charging';
 				} else if (['parked', 'none', 'idle', 'paused'].includes(activity)) {
-					statusMessage = `: GOTOWY`;
+					statusMessage = `GOTOWY`;
 					dotClass = 'status-ready';
 				} else {
-					statusMessage = `: ONLINE`;
+					statusMessage = `ONLINE`;
 					dotClass = 'status-online';
 				}
 			} else {
@@ -527,26 +527,26 @@ export const getConsolidatedDeviceStatus = device => {
 		} else if (device.type === 'SMART_WATERING_COMPUTER') {
 			if (generalState === 'ok') {
 				if (['running', 'open', 'manual_watering'].includes(activity)) {
-					statusMessage = `: PODLEWANIE`;
+					statusMessage = `PODLEWANIE`;
 					dotClass = 'status-online';
 				} else {
-					statusMessage = `: GOTOWY`;
+					statusMessage = `GOTOWY`;
 					dotClass = 'status-ready';
 				}
 			} else {
 				const stateInfo = getStatusInfo(generalState);
-				statusMessage = `: ONLINE (${stateInfo.text})`;
+				statusMessage = `ONLINE (${stateInfo.text})`;
 				dotClass = 'status-ready';
 			}
 		} else if (device.type === 'SMART_PLUG') {
-			statusMessage = `: ONLINE`;
+			statusMessage = `ONLINE`;
 			dotClass = 'status-online';
 		} else {
-			statusMessage = `: ONLINE`;
+			statusMessage = `ONLINE`;
 			dotClass = 'status-online';
 		}
 	} else {
-		statusMessage = `: STATUS NIEZNANY`;
+		statusMessage = `STATUS NIEZNANY`;
 		dotClass = 'status-unknown';
 	}
 	return { displayName: deviceName, statusMessage: statusMessage, dotClass: dotClass };

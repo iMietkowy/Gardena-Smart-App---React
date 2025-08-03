@@ -78,8 +78,6 @@ const App = () => {
 				settings: {
 					slidesToShow: 2,
 					slidesToScroll: 1,
-					infinite: false,
-					autoplay: false,
 				},
 			},
 			{
@@ -87,17 +85,6 @@ const App = () => {
 				settings: {
 					slidesToShow: 1,
 					slidesToScroll: 1,
-					infinite: false,
-					autoplay: false,
-				},
-			},
-			{
-				breakpoint: 992,
-				settings: {
-					slidesToShow: 1,
-					slidesToScroll: 1,
-					infinite: false,
-					autoplay: false,
 				},
 			},
 		],
@@ -150,27 +137,27 @@ const App = () => {
 		);
 	}
 
-	// Dynamiczne ustawienia dla slajdera, aby był statyczny przy małej liczbie urządzeń
-	const dynamicSettings = {
-		...settings,
-		slidesToShow: devices.length,
-		autoplay: devices.length > 3,
-		infinite: devices.length > 3,
+	//LOGIKA DLA KARUZELI.
+	const getSlidesToShow = width => {
+		if (width > 1650) return 3;
+		if (width > 1430) return 2;
+		return 1;
 	};
 
-	if (windowWidth <= 1650) {
-		dynamicSettings.slidesToShow = devices.length;
-		dynamicSettings.autoplay = devices.length > 2;
-		dynamicSettings.infinite = devices.length > 2;
-	}
+	const slidesToShow = getSlidesToShow(windowWidth);
 
-	if (windowWidth <= 1430) {
-		dynamicSettings.slidesToShow = devices.length;
-		dynamicSettings.autoplay = devices.length > 1;
-		dynamicSettings.infinite = devices.length > 1;
-	}
+	const dynamicSettings = {
+		...settings,
+		// Ustawienia autoodtwarzania i zapętlania są aktywne,
+		// gdy liczba urządzeń przekracza liczbę wyświetlanych slajdów.
+		// Jeśli jest 1 lub 2 urządzenia i na ekranie mieszczą się 2, to nie ma sensu przewijać.
+		autoplay: devices.length > slidesToShow,
+		infinite: devices.length > slidesToShow,
+		slidesToShow: slidesToShow,
+	};
 
-	const isStaticLayout = devices.length <= dynamicSettings.slidesToShow && windowWidth > 1430;
+	// Warunek dla statycznego układu, gdy wszystkie urządzenia mieszczą się na ekranie.
+	const isStaticLayout = devices.length <= slidesToShow;
 
 	return (
 		<div className='app-container'>
@@ -201,7 +188,7 @@ const App = () => {
 												<div className='robot-status-indicator'>
 													<span className={`status-dot ${statusInfo.dotClass}`}></span>
 													<span className='status-text'>
-														<strong>{statusInfo.displayName}</strong>
+														<strong>{statusInfo.displayName}:</strong>
 														{statusInfo.statusMessage}
 													</span>
 												</div>
@@ -264,7 +251,10 @@ const App = () => {
 								{showNotificationPopup && (
 									<div className='notification-popup' ref={notificationPopupRef}>
 										<div className='notification-popup-header'>
-											<h4>Powiadomienia ({unreadNotificationsCount} nieprzeczytanych)</h4>
+											<h4>
+												Powiadomienia: <br />
+												<span>{unreadNotificationsCount} nieprzeczytanych</span>
+											</h4>
 											{notifications.length > 0 && (
 												<button onClick={() => setNotifications([])} className='clear-notifications-btn'>
 													Wyczyść wszystkie

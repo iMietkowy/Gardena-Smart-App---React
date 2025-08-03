@@ -34,11 +34,12 @@ const StatusItem = ({ label, value, timestamp, className = '' }) => {
 	}
 
 	return (
+		// Zwracamy parę divów, które są oczekiwane przez status-grid
 		<>
 			<div className='status-label'>{label}:</div>
 			<div className='status-value-wrapper'>
 				<span className={`status-value ${displayClassName}`}>{displayText}</span>
-				{timestamp && <span className='status-timestamp'>{formatTimestamp(timestamp)}</span>}
+				{timestamp && <span className='status-timestamp'> {formatTimestamp(timestamp)}</span>}
 			</div>
 		</>
 	);
@@ -48,17 +49,28 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 	const attributes = device.attributes;
 	if (!attributes) return <p className='device-state-empty'>Brak danych o stanie.</p>;
 
-	const statusItems = [];
+	const detailedStatusItems = [];
+	const cardStatusItems = [];
 
 	// Stan połączenia
 	if (attributes.rfLinkState?.value) {
-		statusItems.push(
+		const content = (
 			<StatusItem
 				key='rfLinkState'
 				label='Stan połączenia'
 				value={attributes.rfLinkState.value}
-				timestamp={isDetailed ? attributes.rfLinkState?.timestamp : null}
+				timestamp={attributes.rfLinkState?.timestamp}
 			/>
+		);
+		detailedStatusItems.push(content);
+		cardStatusItems.push(
+			<li key='rfLinkState'>
+				<span className='status'>Stan połączenia:</span>
+				<span className={getStatusInfo(attributes.rfLinkState.value).className}>
+					{' '}
+					{getStatusInfo(attributes.rfLinkState.value).text}
+				</span>
+			</li>
 		);
 	}
 
@@ -71,7 +83,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 
 		if (activeValve) {
 			const valveName = activeValve.attributes?.name?.value || `Zawór ${activeValve.id.split(':').pop()}`;
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='overallState'
 					label='Stan ogólny'
@@ -80,7 +92,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 					timestamp={activeValve.attributes?.activity?.timestamp}
 				/>
 			);
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='wateringActivity'
 					label='Aktywność'
@@ -96,14 +108,14 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 				const now = new Date();
 				if (endTime > now) {
 					const endTimeFormatted = endTime.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-					statusItems.push(
+					detailedStatusItems.push(
 						<StatusItem key='endTime' label='Działa do' value={endTimeFormatted} className='status-ok' />
 					);
 				}
 			}
 		} else {
 			const stateInfo = getStatusInfo(attributes.state?.value);
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='overallState'
 					label='Stan ogólny'
@@ -113,7 +125,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 				/>
 			);
 			const activityInfo = getStatusInfo(attributes.activity?.value);
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='activity'
 					label='Aktywność'
@@ -131,7 +143,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 				const valveName =
 					lastClosedValveActivity.attributes?.name?.value || `Zawór ${lastClosedValveActivity.id.split(':').pop()}`;
 
-				statusItems.push(
+				detailedStatusItems.push(
 					<StatusItem
 						key='lastActivity'
 						label='Ostatnio podlewał'
@@ -141,7 +153,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 					/>
 				);
 			} else {
-				statusItems.push(
+				detailedStatusItems.push(
 					<StatusItem
 						key='noRecentActivity'
 						label='Ostatnio podlewał'
@@ -168,7 +180,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 				stateValue = text;
 				stateClass = className;
 			}
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='generalState'
 					label='Stan ogólny'
@@ -176,6 +188,12 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 					className={stateClass}
 					timestamp={isDetailed ? attributes.state?.timestamp : null}
 				/>
+			);
+			cardStatusItems.push(
+				<li key='generalState'>
+					<span className='status'>Stan ogólny:</span>
+					<span className={stateClass}> {stateValue}</span>
+				</li>
 			);
 		}
 
@@ -203,15 +221,20 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 				activityText = text;
 				activityClass = className;
 			}
-
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='activity'
 					label='Aktywność'
 					value={activityText}
 					className={activityClass}
-					timestamp={isDetailed ? attributes.activity?.timestamp : null}
+					timestamp={attributes.activity?.timestamp}
 				/>
+			);
+			cardStatusItems.push(
+				<li key='activity'>
+					<span className='status'>Aktywność:</span>
+					<span className={activityClass}> {activityText}</span>
+				</li>
 			);
 		}
 	}
@@ -225,14 +248,20 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 	) {
 		const errorMessage = getMowerErrorInfo(errorCode);
 		if (errorMessage) {
-			statusItems.push(
+			detailedStatusItems.push(
 				<StatusItem
 					key='errorDetails'
 					label='Szczegóły'
 					value={errorMessage}
 					className='status-error'
-					timestamp={isDetailed ? attributes.lastErrorCode?.timestamp : null}
+					timestamp={attributes.lastErrorCode?.timestamp}
 				/>
+			);
+			cardStatusItems.push(
+				<li key='errorDetails'>
+					<span className='status'>Szczegóły:</span>
+					<span className='status-error'> {errorMessage}</span>
+				</li>
 			);
 		}
 	}
@@ -240,44 +269,44 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 	// Poziom baterii (tylko dla MOWER)
 	const batteryLevel = device.type === 'MOWER' ? attributes.batteryLevel?.value : undefined;
 	if (batteryLevel !== undefined) {
-		if (isDetailed) {
-			statusItems.push(
-				<React.Fragment key='batteryStatus'>
-					<div className='status-label'>Bateria:</div>
-					<div className='status-value-wrapper'>
-						<BatteryStatus level={batteryLevel} />
-					</div>
-				</React.Fragment>
-			);
-		} else {
-			statusItems.push(
-				<li key='batteryStatus'>
+		detailedStatusItems.push(
+			<React.Fragment key='batteryStatus'>
+				<div className='status-label'>Bateria:</div>
+				<div className='status-value-wrapper'>
 					<BatteryStatus level={batteryLevel} />
-				</li>
-			);
-		}
+				</div>
+			</React.Fragment>
+		);
+		cardStatusItems.push(
+			<li key='batteryStatus'>
+				<BatteryStatus level={batteryLevel} />
+			</li>
+		);
 	}
 
 	// Temperatura otoczenia (tylko dla SMART_PLUG)
 	if (device.type === 'SMART_PLUG' && attributes.ambientTemperature?.value !== undefined) {
-		statusItems.push(
+		detailedStatusItems.push(
 			<StatusItem key='ambientTemperature' label='Temp. otoczenia' value={`${attributes.ambientTemperature.value}°C`} />
+		);
+		cardStatusItems.push(
+			<li key='ambientTemperature'>
+				<span className='status'>Temp. otoczenia:</span> {attributes.ambientTemperature.value}°C
+			</li>
 		);
 	}
 
-	if (statusItems.length === 0) {
-		return <p className='device-state-empty'>Brak szczegółowych danych o stanie.</p>;
+	if (isDetailed) {
+		if (detailedStatusItems.length === 0) {
+			return <p className='device-state-empty'>Brak szczegółowych danych o stanie.</p>;
+		}
+		return <div className='status-grid'>{detailedStatusItems}</div>;
+	} else {
+		if (cardStatusItems.length === 0) {
+			return <p className='device-state-empty'>Brak szczegółowych danych o stanie.</p>;
+		}
+		return <ul className='device-state-list'>{cardStatusItems}</ul>;
 	}
-
-	return isDetailed ? (
-		<div className='status-grid'>{statusItems}</div>
-	) : (
-		<ul className='device-state-list'>
-			{statusItems.map((item, index) => (
-				<li key={index}>{item}</li>
-			))}
-		</ul>
-	);
 };
 
 export default DeviceStatusDisplay;
