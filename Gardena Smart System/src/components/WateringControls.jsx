@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useControlForm } from '../hooks/useControlForm';
+import { useDurationInput } from '../hooks/useDurationInput'; 
 
 const WateringControls = ({ device, onCommand }) => {
+	const maxDuration = 90; // W minutach
 	const {
 		isSubmitting,
-		controlValue,
-		setControlValue,
 		handleSubmit,
 		showToastNotification,
 	} = useControlForm(onCommand);
 
-	const [selectedValveServiceId, setSelectedValveServiceId] = useState('');
-	const [customMinutesInput, setCustomMinutesInput] = useState('');
 
+	const {
+		durationValue,
+		setDurationValue,
+		handleDurationChange,
+		handlePresetClick,
+		customInputValue,
+		setCustomInputValue,
+	} = useDurationInput(maxDuration, 'minutes');
+
+	const [selectedValveServiceId, setSelectedValveServiceId] = useState('');
+	
 	useEffect(() => {
 		if (device._valveServices?.length > 0) {
 			const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
@@ -27,9 +36,9 @@ const WateringControls = ({ device, onCommand }) => {
 		} else {
 			setSelectedValveServiceId('');
 		}
-		setControlValue('');
-		setCustomMinutesInput('');
-	}, [device]);
+		setDurationValue(''); // Resetuj stan wartości czasu trwania
+		setCustomInputValue(''); // Resetuj stan pola wejściowego
+	}, [device, setDurationValue, setCustomInputValue]);
 
 	const isAnyValveActive = () => {
 		const activeStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
@@ -44,7 +53,6 @@ const WateringControls = ({ device, onCommand }) => {
 		{ label: '15 min', minutes: 15 },
 		{ label: '30 min', minutes: 30 },
 	];
-	const maxDuration = 90;
 
 	const handleStartWatering = e => {
 		e.preventDefault();
@@ -52,11 +60,11 @@ const WateringControls = ({ device, onCommand }) => {
 			showToastNotification('Proszę wybrać sekcję podlewania.', 'error');
 			return;
 		}
-		if (!controlValue || parseInt(controlValue, 10) <= 0) {
+		if (!durationValue || parseInt(durationValue, 10) <= 0) {
 			showToastNotification('Proszę ustawić czas trwania podlewania.', 'error');
 			return;
 		}
-		handleSubmit('startWatering', controlValue, selectedValveServiceId);
+		handleSubmit('startWatering', durationValue, selectedValveServiceId);
 	};
 
 	const handleStopWatering = () => {
@@ -117,42 +125,21 @@ const WateringControls = ({ device, onCommand }) => {
 							<button
 								type='button'
 								key={preset.minutes}
-								className={`btn-toggle ${controlValue == preset.minutes ? 'active' : ''}`}
-								onClick={() => {
-									setControlValue(preset.minutes.toString());
-									setCustomMinutesInput(preset.minutes.toString());
-								}}
+								className={`btn-toggle ${durationValue == preset.minutes ? 'active' : ''}`}
+								onClick={() => handlePresetClick(preset.minutes)}
 							>
 								{preset.label}
 							</button>
 						))}
 					</div>
 					<div className='duration-input-group'>
-						<label htmlFor='controlValue'>Niestandardowy czas (w minutach):</label>
+						<label htmlFor='customMinutesInput'>Niestandardowy czas (w minutach):</label>
 						<input
 							type='text'
 							className='custom-duration-input'
-							id='controlValue'
-							value={customMinutesInput}
-							onChange={e => {
-								const rawValue = e.target.value;
-								if (!/^[0-9]*$/.test(rawValue) && rawValue !== '') {
-									return;
-								}
-								setCustomMinutesInput(rawValue);
-
-								const numericValue = parseInt(rawValue, 10);
-								if (isNaN(numericValue) || rawValue === '') {
-									setControlValue('');
-								} else {
-									let finalValue = Math.min(numericValue, maxDuration);
-									if (numericValue > maxDuration) {
-										showToastNotification(`Maksymalny czas to ${maxDuration} minut.`, 'info');
-										setCustomMinutesInput(finalValue.toString());
-									}
-									setControlValue(String(finalValue));
-								}
-							}}
+							id='customMinutesInput'
+							value={customInputValue}
+							onChange={handleDurationChange}
 							min='0'
 							max={maxDuration}
 							step='1'
@@ -166,7 +153,7 @@ const WateringControls = ({ device, onCommand }) => {
 				<button
 					type='submit'
 					className='btn btn--primary btn--rounded'
-					disabled={!selectedValveServiceId || !controlValue || isSubmitting}
+					disabled={!selectedValveServiceId || !durationValue || isSubmitting}
 				>
 					{getPrimaryButtonText()}
 				</button>

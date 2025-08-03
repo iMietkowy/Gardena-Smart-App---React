@@ -1,4 +1,3 @@
-// server/index.js
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -12,6 +11,7 @@ import cronParser from 'cron-parser';
 import WebSocket, { WebSocketServer } from 'ws';
 import session from 'express-session';
 import bcrypt from 'bcryptjs';
+import http from 'http'; 
 
 const { parseExpression } = cronParser;
 
@@ -30,12 +30,13 @@ app.use(cors());
 app.use(express.json());
 
 // NOWE: Konfiguracja sesji.
-app.use(session({
+const sessionParser = session({
     secret: process.env.SESSION_SECRET || 'your_session_secret_key',
     resave: false,
     saveUninitialized: false,
     cookie: { secure: process.env.NODE_ENV === 'production' }
-}));
+});
+app.use(sessionParser);
 
 // NOWE: Uproszczona "baza danych" użytkowników
 const users = [
@@ -176,7 +177,7 @@ async function sendControlCommand(commandPayload) {
     }
 }
 
-// NOWE: Middleware do sprawdzania uwierzytelnienia
+//Middleware do sprawdzania uwierzytelnienia
 const isAuthenticated = (req, res, next) => {
     if (req.session.userId) {
         return next();
@@ -215,7 +216,7 @@ async function loadSchedulesAndRun() {
 }
 
 // --- Definicja wszystkich ścieżek API ---
-// NOWE: Endpointy do autoryzacji
+// Endpointy do autoryzacji
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username);
@@ -251,7 +252,7 @@ app.get('/api/check-auth', (req, res) => {
     res.status(401).json({ isAuthenticated: false });
 });
 
-// ZMIENIONE: Dodano middleware 'isAuthenticated' do chronionych endpointów
+// Middleware 'isAuthenticated' do chronionych endpointów
 app.get('/api/gardena/devices', isAuthenticated, async (req, res) => {
     if (devicesCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
         return res.json(devicesCache);
@@ -514,30 +515,54 @@ app.delete('/api/schedules/:id', isAuthenticated, async (req, res) => {
 
 
 // --- Ścieżka "catch-all" ---
-// Zmienione: Domyślny routing dla SPA po uwzględnieniu autoryzacji
+//Domyślny routing dla SPA po uwzględnieniu autoryzacji
 app.get('*', (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // --- Uruchomienie serwera HTTP i dołączenie serwera WebSocket ---
-const server = app.listen(PORT, () => {
-    console.log(`Serwer aplikacji i API działa na porcie ${PORT}`);
-    loadSchedulesAndRun();
-    startGardenaLiveStream();
-});
+const server = http.createServer(app); // Używam wbudowanego modułu http
 
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
 
 wss.on('connection', (ws, req) => {
-    // NOWE: Sprawdzamy, czy klient ma aktywną sesję
+    //Sprawdzamy, czy klient ma aktywną sesję
     if (!req.session?.userId) {
         console.log('[WSS] Odrzucono połączenie WebSocket - brak autoryzacji.');
         ws.close(1008, 'Unauthorized');
         return;
     }
-    console.log('[WSS] Nowy klient (przeglądarka) połączony.');
+    console.log('[WSS] Nowy klient (użytkownik: ' + req.session.username + ') połączony.');
     ws.on('close', () => console.log('[WSS] Klient (przeglądarka) rozłączony.'));
     ws.on('error', console.error);
+});
+
+//Funkcja obsługująca upgrade połączenia WebSocket
+server.on('upgrade', function upgrade(request, socket, head) {
+    console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
+
+    // Parsowanie sesji przed uaktualnieniem połączenia
+    sessionParser(request, {}, () => {
+        if (!request.session?.userId) {
+            console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+
+        console.log('[WSS] Zezwolono na połączenie WebSocket - sesja autoryzowana.');
+
+        wss.handleUpgrade(request, socket, head, function done(ws) {
+            wss.emit('connection', ws, request);
+        });
+    });
+});
+
+
+server.listen(PORT, () => {
+    console.log(`Serwer aplikacji i API działa na porcie ${PORT}`);
+    loadSchedulesAndRun();
+    startGardenaLiveStream();
 });
 
 function broadcast(data) {

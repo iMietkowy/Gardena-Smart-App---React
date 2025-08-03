@@ -6,34 +6,14 @@ import MowerControls from './MowerControls';
 import WateringControls from './WateringControls';
 import PlugControls from './PlugControls';
 import ValveCard from './ValveCard';
-import BatteryStatus from './BatteryStatus';
-import { getStatusInfo, getMowerErrorInfo } from '../utils/statusUtils';
+import DeviceStatusDisplay from './DeviceStatusDisplay';
 import mowerImage from '../img/mower.png';
 import wheelImage from '../img/wheel.png';
 import grassImage from '../img/grass.png';
 import ParkMowerModal from './ParkMowerModal';
 
-const formatTimestamp = isoString => {
-	if (!isoString) return '';
-	const date = new Date(isoString);
-	const now = new Date();
-	const diffSeconds = Math.round((now - date) / 1000);
-	if (diffSeconds < 60) return 'przed chwilą';
-	const diffMinutes = Math.round(diffSeconds / 60);
-	if (diffMinutes < 60) return `${diffMinutes} min temu`;
-	const diffHours = Math.round(diffMinutes / 60);
-	if (diffHours < 24) return `${diffHours} godz. temu`;
-	return date.toLocaleString('pl-PL', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-	});
-};
-
 const DeviceDetailPage = () => {
-	const { devices, loading, fetchGardenaDevices } = useAppContext();
+	const { devices, loading } = useAppContext();
 	const { showToastNotification, addNotificationToBell } = useNotificationContext();
 	const { deviceId } = useParams();
 	const navigate = useNavigate();
@@ -73,223 +53,6 @@ const DeviceDetailPage = () => {
 		}
 	};
 
-	const renderDeviceState = attributes => {
-		if (!attributes) return <p>Brak danych o stanie.</p>;
-
-		const StatusItem = ({ label, value, timestamp, className = '' }) => {
-			if (value === undefined || value === null) return null;
-
-			let displayText;
-			let displayClassName;
-
-			const statusInfo = getStatusInfo(value);
-			displayText = statusInfo.text;
-			displayClassName = className || statusInfo.className;
-			if (value === 'Aktywny') {
-				displayText = 'Aktywny';
-			}
-
-			return (
-				<>
-					<div className='status-label'>{label}:</div>
-					<div className='status-value-wrapper'>
-						<span className={`status-value ${displayClassName}`}>{displayText}</span>
-						{timestamp && <span className='status-timestamp'>{formatTimestamp(timestamp)}</span>}
-					</div>
-				</>
-			);
-		};
-
-		const statusElements = [];
-
-		if (attributes.rfLinkState?.value) {
-			const { className, text } = getStatusInfo(attributes.rfLinkState.value);
-			statusElements.push(
-				<StatusItem
-					key='rfLinkState'
-					label='Stan połączenia'
-					value={text}
-					timestamp={attributes.rfLinkState?.timestamp}
-					className={className}
-				/>
-			);
-		}
-
-		if (device.type === 'SMART_WATERING_COMPUTER') {
-			const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
-			const activeValve = device._valveServices?.find(v =>
-				activeWateringStates.includes(v.attributes?.activity?.value?.toUpperCase())
-			);
-
-			if (activeValve) {
-				const valveName = activeValve.attributes?.name?.value || `Zawór ${activeValve.id.split(':').pop()}`;
-				statusElements.push(
-					<StatusItem
-						key='overallState'
-						label='Stan ogólny'
-						value='Aktywny'
-						className='status-ok'
-						timestamp={activeValve.attributes?.activity?.timestamp}
-					/>
-				);
-				statusElements.push(
-					<StatusItem
-						key='wateringActivity'
-						label='Aktywność'
-						value={`Podlewanie (${valveName})`}
-						className='status-ok'
-						timestamp={activeValve.attributes?.activity?.timestamp}
-					/>
-				);
-				const durationInfo = activeValve.attributes?.duration;
-				if (durationInfo && durationInfo.value > 0) {
-					const startTime = new Date(durationInfo.timestamp);
-					const endTime = new Date(startTime.getTime() + durationInfo.value * 1000);
-					const now = new Date();
-					if (endTime > now) {
-						const endTimeFormatted = endTime.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-						statusElements.push(
-							<StatusItem key='endTime' label='Działa do' value={endTimeFormatted} className='status-ok' />
-						);
-					}
-				}
-			} else {
-				let stateInfo = getStatusInfo(attributes.state?.value);
-				statusElements.push(
-					<StatusItem
-						key='overallState'
-						label='Stan ogólny'
-						value={stateInfo.text}
-						timestamp={attributes.state?.timestamp}
-						className={stateInfo.className}
-					/>
-				);
-				let activityInfo = getStatusInfo(attributes.activity?.value);
-				statusElements.push(
-					<StatusItem
-						key='activity'
-						label='Aktywność'
-						value={activityInfo.text}
-						timestamp={attributes.activity?.timestamp}
-						className={activityInfo.className}
-					/>
-				);
-				const lastClosedValveActivity = device._valveServices
-					?.filter(v => v.attributes?.activity?.value?.toUpperCase() === 'CLOSED' && v.attributes?.activity?.timestamp)
-					.sort((a, b) => new Date(b.attributes.activity.timestamp) - new Date(a.attributes.activity.timestamp))[0];
-
-				if (lastClosedValveActivity) {
-					const activityTimestamp = lastClosedValveActivity.attributes.activity.timestamp;
-					const valveName =
-						lastClosedValveActivity.attributes?.name?.value || `Zawór ${lastClosedValveActivity.id.split(':').pop()}`;
-
-					statusElements.push(
-						<StatusItem
-							key='lastActivity'
-							label='Ostatnio podlewał'
-							value={`${valveName} (zakończono)`}
-							className='status-info'
-							timestamp={activityTimestamp}
-						/>
-					);
-				} else {
-					statusElements.push(
-						<StatusItem
-							key='noRecentActivity'
-							label='Ostatnio podlewał'
-							value='Brak danych'
-							className='status-warn'
-							timestamp={null}
-						/>
-					);
-				}
-			}
-		} else {
-			if (attributes.state?.value) {
-				let stateInfo;
-				if (
-					attributes.state.value.toUpperCase() === 'UNAVAILABLE' &&
-					attributes.rfLinkState?.value.toUpperCase() === 'ONLINE'
-				) {
-					stateInfo = { className: 'status-warn', text: 'Nieaktywny (tryb uśpienia)' };
-				} else {
-					stateInfo = getStatusInfo(attributes.state.value);
-				}
-				statusElements.push(
-					<StatusItem
-						key='overallState'
-						label='Stan ogólny'
-						value={stateInfo.text}
-						className={stateInfo.className}
-						timestamp={attributes.state?.timestamp}
-					/>
-				);
-			}
-
-			if (attributes.activity?.value) {
-				const { className, text } = getStatusInfo(attributes.activity.value);
-				statusElements.push(
-					<StatusItem
-						key='activity'
-						label='Aktywność'
-						value={text}
-						className={className}
-						timestamp={attributes.activity?.timestamp}
-					/>
-				);
-			}
-		}
-
-		const errorCode = attributes.lastErrorCode?.value;
-		if (
-			device?.type === 'MOWER' &&
-			(attributes.state?.value?.toUpperCase() === 'ERROR' ||
-				attributes.attributes?.state?.value?.toUpperCase() === 'WARNING') &&
-			errorCode
-		) {
-			const errorMessage = getMowerErrorInfo(errorCode);
-			if (errorMessage) {
-				statusElements.push(
-					<StatusItem
-						key='errorDetails'
-						label='Szczegóły'
-						value={errorMessage}
-						className='status-error'
-						timestamp={attributes.lastErrorCode?.timestamp}
-					/>
-				);
-			}
-		}
-
-		const batteryLevel = device.type === 'MOWER' ? attributes.batteryLevel?.value : undefined;
-		if (batteryLevel !== undefined) {
-			statusElements.push(
-				<React.Fragment key='batteryStatus'>
-					<div className='status-label'>Bateria:</div>
-					<div className='status-value-wrapper'>
-						<BatteryStatus level={batteryLevel} />
-					</div>
-				</React.Fragment>
-			);
-		}
-
-		if (device.type === 'SMART_PLUG' && attributes.ambientTemperature?.value !== undefined) {
-			statusElements.push(
-				<StatusItem
-					key='ambientTemperature'
-					label='Temp. otoczenia'
-					value={`${attributes.ambientTemperature.value}°C`}
-				/>
-			);
-		}
-
-		return (
-			<div className='status-grid'>
-				{statusElements.length > 0 ? statusElements : <p>Brak szczegółowych danych o stanie.</p>}
-			</div>
-		);
-	};
-
 	const renderDeviceControls = useCallback(() => {
 		switch (device?.type) {
 			case 'MOWER':
@@ -327,14 +90,15 @@ const DeviceDetailPage = () => {
 		);
 	}
 
-    const isMowerActive = device.type === 'MOWER' && 
-                        ['MOWING', 'OK_CUTTING', 'SCHEDULED_MOWING'].includes(device.attributes?.activity?.value?.toUpperCase());
+	const isMowerActive =
+		device.type === 'MOWER' &&
+		['MOWING', 'OK_CUTTING', 'SCHEDULED_MOWING'].includes(device.attributes?.activity?.value?.toUpperCase());
 
 	return (
 		<div className='device-detail-page'>
 			<div className='device-detail-page__main-content'>
 				<div className='device-title-container'>
-                    <h2>{device.displayName || 'Nieznane urządzenie'}</h2>
+					<h2>{device.displayName || 'Nieznane urządzenie'}</h2>
 				</div>
 
 				<div className='device-button-container'>
@@ -361,7 +125,7 @@ const DeviceDetailPage = () => {
 				)}
 				<div className='detail-section'>
 					<h3>Aktualny stan:</h3>
-					{renderDeviceState(device.attributes)}
+					<DeviceStatusDisplay device={device} isDetailed={true} />
 				</div>
 				{isMowerActive && (
 					<div className='animation'>

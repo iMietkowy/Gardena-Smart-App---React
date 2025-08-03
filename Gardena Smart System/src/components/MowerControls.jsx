@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import { useControlForm } from '../hooks/useControlForm';
+import { useDurationInput } from '../hooks/useDurationInput';
 
 const MowerControls = ({ onCommand }) => {
-	const {
-		isSubmitting,
-		controlAction,
-		setControlAction,
-		controlValue,
-		setControlValue,
-		handleSubmit,
-		showToastNotification,
-	} = useControlForm(onCommand);
+	const maxDuration = 6;
+	const { isSubmitting, controlAction, setControlAction, handleSubmit, showToastNotification } =
+		useControlForm(onCommand);
 
-	const [customHoursInput, setCustomHoursInput] = useState('1');
+	const { durationValue, setDurationValue, handleDurationChange, handlePresetClick, customInputValue } =
+		useDurationInput(maxDuration, 'hours');
 
 	const durationPresets = [
 		{ label: '1 godzina', minutes: 60 },
@@ -20,12 +16,11 @@ const MowerControls = ({ onCommand }) => {
 		{ label: '3 godziny', minutes: 180 },
 		{ label: '6 godzin', minutes: 360 },
 	];
-	const maxDuration = 6;
 
 	const handleActionChange = action => {
 		setControlAction(action);
 		if (action !== 'start') {
-			setControlValue(null);
+			setDurationValue(null);
 		}
 	};
 
@@ -35,7 +30,7 @@ const MowerControls = ({ onCommand }) => {
 			showToastNotification('Proszę wybrać akcję do wykonania.', 'error');
 			return;
 		}
-		const valueToSend = controlAction === 'start' ? controlValue : null;
+		const valueToSend = controlAction === 'start' ? durationValue : null;
 		handleSubmit(controlAction, valueToSend);
 	};
 
@@ -94,40 +89,21 @@ const MowerControls = ({ onCommand }) => {
 							<button
 								type='button'
 								key={preset.minutes}
-								className={`btn-toggle ${controlValue == preset.minutes ? 'active' : ''}`}
-								onClick={() => {
-									setControlValue(preset.minutes.toString());
-									setCustomHoursInput((preset.minutes / 60).toString());
-								}}
+								className={`btn-toggle ${durationValue == preset.minutes ? 'active' : ''}`}
+								onClick={() => handlePresetClick(preset.minutes)}
 							>
 								{preset.label}
 							</button>
 						))}
 					</div>
 					<div className='duration-input-group'>
-						<label htmlFor='controlValue'>Niestandardowy czas (w godzinach):</label>
+						<label htmlFor='customHoursInput'>Niestandardowy czas (w godzinach):</label>
 						<input
 							type='text'
 							className='custom-duration-input'
-							id='controlValue'
-							value={customHoursInput}
-							onChange={e => {
-								const rawValue = e.target.value.replace(',', '.');
-								if (!/^[0-9]*\.?[0-9]*$/.test(rawValue)) return;
-								setCustomHoursInput(rawValue);
-
-								const numericValue = parseFloat(rawValue);
-								if (isNaN(numericValue) || rawValue === '') {
-									setControlValue('');
-								} else {
-									let finalValue = Math.min(numericValue, maxDuration);
-									if (numericValue > maxDuration) {
-										showToastNotification(`Maksymalny czas to ${maxDuration} godzin.`, 'info');
-										setCustomHoursInput(finalValue.toString());
-									}
-									setControlValue(String(finalValue * 60));
-								}
-							}}
+							id='customHoursInput'
+							value={customInputValue}
+							onChange={handleDurationChange}
 							min='0'
 							max={maxDuration}
 							step='0.5'
