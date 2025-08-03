@@ -24,6 +24,7 @@
 	max-width: 400px;
 	text-align: center;
 	animation: slideIn 0.3s ease-out;
+	
 
 	@media (max-width: 767px) {
 		padding: 1.5rem;
@@ -84,6 +85,10 @@
 			font-weight: 600;
 		}
 	}
+}
+
+.modal-overlay {
+    z-index: 1001;
 }
 
 @keyframes fadeIn {

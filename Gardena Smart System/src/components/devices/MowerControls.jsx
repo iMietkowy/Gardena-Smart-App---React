@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { useControlForm } from '../hooks/useControlForm';
-import { useDurationInput } from '../hooks/useDurationInput';
+import React from 'react';
+import { useControlForm } from '../../hooks/useControlForm';
+import { useDurationInput } from '../../hooks/useDurationInput';
+import DurationSelector from '../common/DurationSelector';
 
 const MowerControls = ({ onCommand }) => {
 	const maxDuration = 6;
 	const { isSubmitting, controlAction, setControlAction, handleSubmit, showToastNotification } =
 		useControlForm(onCommand);
-
-	const { durationValue, setDurationValue, handleDurationChange, handlePresetClick, customInputValue } =
-		useDurationInput(maxDuration, 'hours');
+	const { durationValue, handleDurationChange, handlePresetClick, customInputValue } = useDurationInput(
+		maxDuration,
+		'hours'
+	);
 
 	const durationPresets = [
 		{ label: '1 godzina', minutes: 60 },
@@ -19,9 +21,6 @@ const MowerControls = ({ onCommand }) => {
 
 	const handleActionChange = action => {
 		setControlAction(action);
-		if (action !== 'start') {
-			setDurationValue(null);
-		}
 	};
 
 	const handleSubmitForm = e => {
@@ -80,37 +79,17 @@ const MowerControls = ({ onCommand }) => {
 					</div>
 				</div>
 			</div>
-
 			{controlAction === 'start' && (
-				<div className='duration-selection-container'>
-					<label>Czas trwania:</label>
-					<div className='btn-group'>
-						{durationPresets.map(preset => (
-							<button
-								type='button'
-								key={preset.minutes}
-								className={`btn-toggle ${durationValue == preset.minutes ? 'active' : ''}`}
-								onClick={() => handlePresetClick(preset.minutes)}
-							>
-								{preset.label}
-							</button>
-						))}
-					</div>
-					<div className='duration-input-group'>
-						<label htmlFor='customHoursInput'>Niestandardowy czas (w godzinach):</label>
-						<input
-							type='text'
-							className='custom-duration-input'
-							id='customHoursInput'
-							value={customInputValue}
-							onChange={handleDurationChange}
-							min='0'
-							max={maxDuration}
-							step='0.5'
-							placeholder='np. 1.5'
-						/>
-					</div>
-				</div>
+				<DurationSelector
+					presets={durationPresets}
+					durationValue={durationValue}
+					onPresetClick={handlePresetClick}
+					customInputValue={customInputValue}
+					onCustomInputChange={handleDurationChange}
+					maxDuration={maxDuration}
+					unitLabel='godzinach'
+					inputPlaceholder='np. 1.5'
+				/>
 			)}
 
 			<button type='submit' className='btn btn--primary btn--rounded' disabled={!controlAction || isSubmitting}>

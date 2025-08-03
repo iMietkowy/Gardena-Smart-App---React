@@ -11,7 +11,7 @@ import cronParser from 'cron-parser';
 import WebSocket, { WebSocketServer } from 'ws';
 import session from 'express-session';
 import bcrypt from 'bcryptjs';
-import http from 'http'; 
+import http from 'http';
 
 const { parseExpression } = cronParser;
 
@@ -31,41 +31,41 @@ app.use(express.json());
 
 //Konfiguracja sesji.
 const sessionParser = session({
-    secret: process.env.SESSION_SECRET || 'your_session_secret_key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+	secret: process.env.SESSION_SECRET || 'your_session_secret_key',
+	resave: false,
+	saveUninitialized: false,
+	cookie: { secure: process.env.NODE_ENV === 'production' },
 });
 app.use(sessionParser);
 
 //Uproszczona "baza danych" użytkowników
-const users = [
-    { id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }
-];
+const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
 
 // --- Serwowanie statycznego frontendu z warunkiem autoryzacji ---
 const frontendDistPath = path.join(__dirname, '..', 'dist');
 const publicRoutes = ['/login', '/favicon.ico', '/assets/logo'];
-const isPublicFile = (req) => {
-  return publicRoutes.some(route => req.path.startsWith(route)) || req.path === '/' || req.path.startsWith('/assets/logo');
+const isPublicFile = req => {
+	return (
+		publicRoutes.some(route => req.path.startsWith(route)) || req.path === '/' || req.path.startsWith('/assets/logo')
+	);
 };
 
 app.use((req, res, next) => {
-    const isApiRoute = req.path.startsWith('/api');
-    const isPublicFileRoute = isPublicFile(req);
+	const isApiRoute = req.path.startsWith('/api');
+	const isPublicFileRoute = isPublicFile(req);
 
-    // Jeśli jest to ścieżka API, przechodzimy dalej, ponieważ autoryzacja jest sprawdzana w poszczególnych endpointach
-    if (isApiRoute) {
-        return next();
-    }
+	// Jeśli jest to ścieżka API, przechodzimy dalej, ponieważ autoryzacja jest sprawdzana w poszczególnych endpointach
+	if (isApiRoute) {
+		return next();
+	}
 
-    // Jeśli użytkownik jest zalogowany LUB jest to publiczna ścieżka (np. /login)
-    if (req.session.userId || isPublicFileRoute) {
-        return next();
-    }
+	// Jeśli użytkownik jest zalogowany LUB jest to publiczna ścieżka (np. /login)
+	if (req.session.userId || isPublicFileRoute) {
+		return next();
+	}
 
-    // W przeciwnym razie, przekierowujemy na stronę logowania
-    res.redirect('/login');
+	// W przeciwnym razie, przekierowujemy na stronę logowania
+	res.redirect('/login');
 }, express.static(frontendDistPath));
 
 console.log(`[INFO] Serwowanie plików frontendu z: ${frontendDistPath}`);
@@ -88,560 +88,494 @@ let cacheTimestamp = 0;
 const CACHE_DURATION_MS = 5 * 1000;
 
 async function getAccessToken() {
-    if (accessToken && Date.now() < tokenExpiry) return accessToken;
-    try {
-        const authData = new URLSearchParams({
-            client_id: GARDENA_CLIENT_ID,
-            client_secret: GARDENA_CLIENT_SECRET,
-            grant_type: 'client_credentials',
-        });
-        const response = await axios.post(GARDENA_AUTH_URL, authData);
-        accessToken = response.data.access_token;
-        tokenExpiry = Date.now() + response.data.expires_in * 1000 - 60000;
-        console.log('[INFO] Token API Gardena pomyślnie uzyskany/odświeżony!');
-        return accessToken;
-    } catch (error) {
-        console.error('Błąd podczas uzyskania tokena API Gardena:', error.response?.data || error.message);
-        throw new Error('Nie można uzyskać tokena autoryzacji Gardena.');
-    }
+	if (accessToken && Date.now() < tokenExpiry) return accessToken;
+	try {
+		const authData = new URLSearchParams({
+			client_id: GARDENA_CLIENT_ID,
+			client_secret: GARDENA_CLIENT_SECRET,
+			grant_type: 'client_credentials',
+		});
+		const response = await axios.post(GARDENA_AUTH_URL, authData);
+		accessToken = response.data.access_token;
+		tokenExpiry = Date.now() + response.data.expires_in * 1000 - 60000;
+		console.log('[INFO] Token API Gardena pomyślnie uzyskany/odświeżony!');
+		return accessToken;
+	} catch (error) {
+		console.error('Błąd podczas uzyskania tokena API Gardena:', error.response?.data || error.message);
+		throw new Error('Nie można uzyskać tokena autoryzacji Gardena.');
+	}
 }
 
 async function sendControlCommand(commandPayload) {
-    const { deviceId, action, value, deviceType, valveServiceId } = commandPayload;
-    const token = await getAccessToken();
-    const serviceIdToUse = valveServiceId || deviceId;
-    const apiUrl = `${GARDENA_SMART_API_BASE_URL}/command/${serviceIdToUse}`;
-    let commandType = '',
-        commandData = {},
-        controlResourceType = '';
+	const { deviceId, action, value, deviceType, valveServiceId } = commandPayload;
+	const token = await getAccessToken();
+	const serviceIdToUse = valveServiceId || deviceId;
+	const apiUrl = `${GARDENA_SMART_API_BASE_URL}/command/${serviceIdToUse}`;
+	let commandType = '',
+		commandData = {},
+		controlResourceType = '';
 
-    switch (action) {
-        case 'start':
-            commandType = 'START_SECONDS_TO_OVERRIDE';
-            commandData = { seconds: parseInt(value, 10) * 60 };
-            controlResourceType = 'MOWER_CONTROL';
-            break;
-        case 'parkUntilNextTask':
-            commandType = 'PARK_UNTIL_NEXT_TASK';
-            controlResourceType = 'MOWER_CONTROL';
-            break;
-        case 'parkUntilFurtherNotice':
-            commandType = 'PARK_UNTIL_FURTHER_NOTICE';
-            controlResourceType = 'MOWER_CONTROL';
-            break;
-        case 'startWatering':
-            commandType = 'START_SECONDS_TO_OVERRIDE';
-            commandData = { seconds: parseInt(value, 10) * 60 };
-            controlResourceType = 'VALVE_CONTROL';
-            break;
-        case 'stopWatering':
-            commandType = 'STOP_UNTIL_NEXT_TASK';
-            controlResourceType = 'VALVE_CONTROL';
-            break;
-        case 'turnOn':
-            commandType = 'START';
-            controlResourceType = 'POWER_SOCKET_CONTROL';
-            break;
-        case 'turnOff':
-            commandType = 'STOP';
-            controlResourceType = 'POWER_SOCKET_CONTROL';
-            break;
-        default:
-            throw new Error(`Nieznana akcja: ${action}`);
-    }
+	switch (action) {
+		case 'start':
+			commandType = 'START_SECONDS_TO_OVERRIDE';
+			commandData = { seconds: parseInt(value, 10) * 60 };
+			controlResourceType = 'MOWER_CONTROL';
+			break;
+		case 'parkUntilNextTask':
+			commandType = 'PARK_UNTIL_NEXT_TASK';
+			controlResourceType = 'MOWER_CONTROL';
+			break;
+		case 'parkUntilFurtherNotice':
+			commandType = 'PARK_UNTIL_FURTHER_NOTICE';
+			controlResourceType = 'MOWER_CONTROL';
+			break;
+		case 'startWatering':
+			commandType = 'START_SECONDS_TO_OVERRIDE';
+			commandData = { seconds: parseInt(value, 10) * 60 };
+			controlResourceType = 'VALVE_CONTROL';
+			break;
+		case 'stopWatering':
+			commandType = 'STOP_UNTIL_NEXT_TASK';
+			controlResourceType = 'VALVE_CONTROL';
+			break;
+		case 'turnOn':
+			commandType = 'START';
+			controlResourceType = 'POWER_SOCKET_CONTROL';
+			break;
+		case 'turnOff':
+			commandType = 'STOP';
+			controlResourceType = 'POWER_SOCKET_CONTROL';
+			break;
+		default:
+			throw new Error(`Nieznana akcja: ${action}`);
+	}
 
-    const payload = {
-        data: {
-            type: controlResourceType,
-            id: uuidv4(),
-            attributes: { command: commandType, ...commandData },
-        },
-    };
+	const payload = {
+		data: {
+			type: controlResourceType,
+			id: uuidv4(),
+			attributes: { command: commandType, ...commandData },
+		},
+	};
 
-    try {
-        await axios.put(apiUrl, payload, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Authorization-Provider': 'husqvarna',
-                'X-Api-Key': GARDENA_API_KEY,
-                'Content-Type': 'application/vnd.api+json',
-            },
-        });
-        console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
-    } catch (error) {
-        console.error(
-            `Błąd podczas wykonywania komendy dla ${serviceIdToUse}:`,
-            error.response ? error.response.data : error.message
-        );
-        throw error;
-    }
+	try {
+		await axios.put(apiUrl, payload, {
+			headers: {
+				Authorization: `Bearer ${token}`,
+				'Authorization-Provider': 'husqvarna',
+				'X-Api-Key': GARDENA_API_KEY,
+				'Content-Type': 'application/vnd.api+json',
+			},
+		});
+		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
+	} catch (error) {
+		throw error;
+	}
 }
 
 //Middleware do sprawdzania uwierzytelnienia
 const isAuthenticated = (req, res, next) => {
-    if (req.session.userId) {
-        return next();
-    }
-    res.status(401).json({ message: 'Brak autoryzacji. Proszę się zalogować.' });
+	if (req.session.userId) {
+		return next();
+	}
+
+	res.status(401).json({ message: 'Brak autoryzacji. Proszę się zalogować.' });
 };
 
 const scheduledJobs = new Map();
 async function loadSchedulesAndRun() {
-    try {
-        for (const job of scheduledJobs.values()) {
-            job.cancel();
-        }
-        scheduledJobs.clear();
+	try {
+		for (const job of scheduledJobs.values()) {
+			job.cancel();
+		}
+		scheduledJobs.clear();
 
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        if (db && db.schedules) {
-            console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
-            db.schedules.forEach(job => {
-                if (job.enabled) {
-                    const scheduledJob = schedule.scheduleJob(job.cron, () => sendControlCommand(job));
-                    scheduledJobs.set(job.id, scheduledJob);
-                }
-            });
-            console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
-        }
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            console.log('Plik db.json nie istnieje, tworzenie nowego.');
-            await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
-        } else {
-            console.error('Nie można załadować harmonogramów z bazy danych:', error);
-        }
-    }
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		if (db && db.schedules) {
+			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
+			db.schedules.forEach(job => {
+				if (job.enabled) {
+					const scheduledJob = schedule.scheduleJob(job.cron, () => sendControlCommand(job));
+					scheduledJobs.set(job.id, scheduledJob);
+				}
+			});
+			console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
+		}
+	} catch (error) {
+		if (error.code === 'ENOENT') {
+			console.log('Plik db.json nie istnieje, tworzenie nowego.');
+			await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
+		} else {
+			throw new Error(`Nie można załadować harmonogramów z bazy danych: ${error.message}`);
+		}
+	}
+}
+
+// Funkcja pomocnicza do aktualizacji harmonogramów
+async function updateSchedules(updateLogic) {
+	const data = await fs.readFile(DB_PATH, 'utf8');
+	const db = JSON.parse(data);
+
+	db.schedules = updateLogic(db.schedules || []);
+
+	await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+	await loadSchedulesAndRun();
+	return db.schedules;
 }
 
 // --- Definicja wszystkich ścieżek API ---
 // Endpointy do autoryzacji
-app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
-    const user = users.find(u => u.username === username);
+app.post('/api/login', async (req, res, next) => {
+	try {
+		const { username, password } = req.body;
+		const user = users.find(u => u.username === username);
 
-    if (!user) {
-        return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
-    }
+		if (!user) {
+			return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
+		}
 
-    try {
-        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
-        }
-    } catch (error) {
-        console.error('Błąd podczas porównywania hasła:', error);
-        return res.status(500).json({ message: 'Wystąpił błąd serwera. Spróbuj ponownie.' });
-    }
+		const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+		if (!isPasswordValid) {
+			return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
+		}
 
-    req.session.userId = user.id;
-    req.session.username = user.username;
-
-    res.status(200).json({ message: 'Zalogowano pomyślnie!', username: user.username });
+		req.session.userId = user.id;
+		req.session.username = user.username;
+		res.status(200).json({ message: 'Zalogowano pomyślnie!', username: user.username });
+	} catch (error) {
+		next(error);
+	}
 });
 
 app.post('/api/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) {
-            return res.status(500).json({ message: 'Nie udało się wylogować.' });
-        }
-        res.status(200).json({ message: 'Wylogowano.' });
-    });
+	req.session.destroy(err => {
+		if (err) {
+			return next(err);
+		}
+		res.status(200).json({ message: 'Wylogowano.' });
+	});
 });
 
 app.get('/api/check-auth', (req, res) => {
-    if (req.session.userId) {
-        return res.status(200).json({ isAuthenticated: true, username: req.session.username });
-    }
-    res.status(401).json({ isAuthenticated: false });
+	if (req.session.userId) {
+		return res.status(200).json({ isAuthenticated: true, username: req.session.username });
+	}
+	res.status(401).json({ isAuthenticated: false });
 });
 
-// Middleware 'isAuthenticated' do chronionych endpointów
-app.get('/api/gardena/devices', isAuthenticated, async (req, res) => {
-    if (devicesCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
-        return res.json(devicesCache);
-    }
-    try {
-        const token = await getAccessToken();
-        const headers = {
-            Authorization: `Bearer ${token}`,
-            'Authorization-Provider': 'husqvarna',
-            'X-Api-Key': GARDENA_API_KEY,
-        };
-        const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
-        if (!locationsResponse.data?.data?.length)
-            return res.status(404).json({ message: 'Nie znaleziono lokalizacji Gardena.' });
-        const locationId = locationsResponse.data.data[0].id;
-        const devicesResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations/${locationId}`, { headers });
-        devicesCache = devicesResponse.data;
-        cacheTimestamp = Date.now();
-        res.json(devicesResponse.data);
-    } catch (error) {
-        console.error('!!! Wystąpił krytyczny błąd w /api/gardena/devices:', error.response?.data || error.message);
-        res.status(500).json({ error: 'Nie udało się pobrać urządzeń Gardena.' });
-    }
+// Chronione endpointy
+app.get('/api/gardena/devices', isAuthenticated, async (req, res, next) => {
+	try {
+		if (devicesCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
+			return res.json(devicesCache);
+		}
+		const token = await getAccessToken();
+		const headers = {
+			Authorization: `Bearer ${token}`,
+			'Authorization-Provider': 'husqvarna',
+			'X-Api-Key': GARDENA_API_KEY,
+		};
+		const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
+		if (!locationsResponse.data?.data?.length)
+			return res.status(404).json({ message: 'Nie znaleziono lokalizacji Gardena.' });
+		const locationId = locationsResponse.data.data[0].id;
+		const devicesResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations/${locationId}`, { headers });
+		devicesCache = devicesResponse.data;
+		cacheTimestamp = Date.now();
+		res.json(devicesResponse.data);
+	} catch (error) {
+		next(error);
+	}
 });
 
-app.get('/api/weather', isAuthenticated, async (req, res) => {
-    const { lat, lon } = req.query;
-
-    if (!lat || !lon) {
-        return res.status(400).json({ error: 'Brak danych o lokalizacji.' });
-    }
-    if (!OPENWEATHERMAP_API_KEY) {
-        console.error('[Weather API] Brak Klucza API OPENWEATHERMAP w .env!');
-        return res.status(500).json({ error: 'Klucz API pogodowego nie jest skonfigurowany' });
-    }
-
-    try {
-        const weatherResponse = await axios.get(OPENWEATHERMAP_BASE_URL, {
-            params: {
-                lat: lat,
-                lon: lon,
-                appid: OPENWEATHERMAP_API_KEY,
-                units: 'metric',
-                lang: 'pl',
-            },
-        });
-        console.log(`[Weather API] Pogoda dla ${lat}, ${lon} pobrana pomyślnie`);
-        res.json(weatherResponse.data);
-    } catch (error) {
-        console.error('[Weather API] Błąd pobierania danych pogodowych:', error.response?.data || error.message);
-        res
-            .status(500)
-            .json({ error: `Nie udało się pobrać danych pogodowych: ${error.response?.data?.message || error.message}` });
-    }
+app.get('/api/weather', isAuthenticated, async (req, res, next) => {
+	try {
+		const { lat, lon } = req.query;
+		if (!lat || !lon) {
+			return res.status(400).json({ error: 'Brak danych o lokalizacji.' });
+		}
+		if (!OPENWEATHERMAP_API_KEY) {
+			console.error('[Weather API] Brak Klucza API OPENWEATHERMAP w .env!');
+			// To jest błąd konfiguracji serwera, więc rzucamy błąd 500
+			throw new Error('Klucz API pogodowego nie jest skonfigurowany');
+		}
+		const weatherResponse = await axios.get(OPENWEATHERMAP_BASE_URL, {
+			params: { lat, lon, appid: OPENWEATHERMAP_API_KEY, units: 'metric', lang: 'pl' },
+		});
+		res.json(weatherResponse.data);
+	} catch (error) {
+		next(error);
+	}
 });
 
-app.post('/api/gardena/devices/:deviceId/control', isAuthenticated, async (req, res) => {
-    try {
-        const commandPayload = { ...req.body, deviceId: req.params.deviceId };
-        await sendControlCommand(commandPayload);
-        res.json({ message: 'Komenda wysłana pomyślnie!' });
-    } catch (error) {
-        if (error.response && error.response.data) {
-            console.error('Błąd z API Gardena:', error.response.data);
-            const gardenaError = error.response.data.errors?.[0]?.title || JSON.stringify(error.response.data);
-            const statusCode = error.response.status >= 400 && error.response.status < 500 ? error.response.status : 500;
-            return res.status(statusCode).json({ error: `Błąd API Gardena: ${gardenaError}` });
-        }
-        console.error('Błąd ogólny serwera:', error);
-        res.status(500).json({ error: `Wewnętrzny błąd serwera: ${error.message}` });
-    }
+app.post('/api/gardena/devices/:deviceId/control', isAuthenticated, async (req, res, next) => {
+	try {
+		const commandPayload = { ...req.body, deviceId: req.params.deviceId };
+		await sendControlCommand(commandPayload);
+		res.json({ message: 'Komenda wysłana pomyślnie!' });
+	} catch (error) {
+		next(error);
+	}
 });
 
-app.get('/api/schedules', isAuthenticated, async (req, res) => {
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        res.json(JSON.parse(data).schedules || []);
-    } catch (error) {
-        if (error.code === 'ENOENT') return res.json([]);
-        res.status(500).json({ error: 'Nie można odczytać harmonogramów.' });
-    }
+app.get('/api/schedules', isAuthenticated, async (req, res, next) => {
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		res.json(JSON.parse(data).schedules || []);
+	} catch (error) {
+		if (error.code === 'ENOENT') return res.json([]);
+		next(error);
+	}
 });
 
-app.get('/api/schedules/next/:deviceId', isAuthenticated, async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        const deviceSchedules = db.schedules.filter(
-            job => (job.deviceId === deviceId || job.valveServiceId === deviceId) && job.enabled
-        );
-        if (deviceSchedules.length === 0) {
-            return res.json({ nextInvocation: null });
-        }
-        let nextInvocation = null;
-        deviceSchedules.forEach(job => {
-            try {
-                const interval = parseExpression(job.cron);
-                const nextDate = interval.next().toDate();
-                if (!nextInvocation || nextDate < nextInvocation) {
-                    nextInvocation = nextDate;
-                }
-            } catch (err) {
-                console.error(`Błąd parsowania cron "${job.cron}" dla zadania ${job.id}:`, err);
-            }
-        });
-        res.json({ nextInvocation });
-    } catch (error) {
-        if (error.code === 'ENOENT') return res.json({ nextInvocation: null });
-        res.status(500).json({ error: 'Nie udało się pobrać informacji o harmonogramie.' });
-    }
+app.get('/api/schedules/next/:deviceId', isAuthenticated, async (req, res, next) => {
+	try {
+		const { deviceId } = req.params;
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		const db = JSON.parse(data);
+		const deviceSchedules = db.schedules.filter(
+			job => (job.deviceId === deviceId || job.valveServiceId === deviceId) && job.enabled
+		);
+		if (deviceSchedules.length === 0) {
+			return res.json({ nextInvocation: null });
+		}
+		let nextInvocation = null;
+		deviceSchedules.forEach(job => {
+			try {
+				const interval = parseExpression(job.cron);
+				const nextDate = interval.next().toDate();
+				if (!nextInvocation || nextDate < nextInvocation) {
+					nextInvocation = nextDate;
+				}
+			} catch (err) {
+				// Logujemy błąd parsowania, ale nie przerywamy działania aplikacji
+				console.error(`Błąd parsowania cron "${job.cron}" dla zadania ${job.id}:`, err);
+			}
+		});
+		res.json({ nextInvocation });
+	} catch (error) {
+		if (error.code === 'ENOENT') return res.json({ nextInvocation: null });
+		next(error);
+	}
 });
 
-app.post('/api/schedules', isAuthenticated, async (req, res) => {
-    const newJob = { ...req.body, id: uuidv4() };
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.push(newJob);
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(201).json(newJob);
-    } catch (error) {
-        res.status(500).json({ error: 'Nie można zapisać harmonogramu.' });
-    }
+app.post('/api/schedules', isAuthenticated, async (req, res, next) => {
+	try {
+		const newJob = { ...req.body, id: uuidv4() };
+		await updateSchedules(schedules => [...schedules, newJob]);
+		res.status(201).json(newJob);
+	} catch (error) {
+		next(error);
+	}
 });
 
-app.patch('/api/schedules/:id/toggle', isAuthenticated, async (req, res) => {
-    const { id } = req.params;
-    const { enabled } = req.body;
-
-    if (typeof enabled !== 'boolean') {
-        return res.status(400).json({ error: 'Nieprawidłowy status "enabled". Oczekiwano wartości boolean.' });
-    }
-
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        const jobIndex = db.schedules.findIndex(job => job.id === id);
-
-        if (jobIndex === -1) {
-            return res.status(404).json({ error: 'Nie znaleziono harmonogramu.' });
-        }
-
-        db.schedules[jobIndex].enabled = enabled;
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-
-        await loadSchedulesAndRun();
-
-        res.status(200).json(db.schedules[jobIndex]);
-    } catch (error) {
-        res.status(500).json({ error: 'Nie można zaktualizować harmonogramu.' });
-    }
+app.patch('/api/schedules/:id/toggle', isAuthenticated, async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		const { enabled } = req.body;
+		if (typeof enabled !== 'boolean') {
+			return res.status(400).json({ error: 'Nieprawidłowy status "enabled". Oczekiwano wartości boolean.' });
+		}
+		let updatedJob = null;
+		await updateSchedules(schedules => {
+			const jobIndex = schedules.findIndex(job => job.id === id);
+			if (jobIndex === -1) {
+				const err = new Error('Nie znaleziono harmonogramu.');
+				err.statusCode = 404;
+				throw err;
+			}
+			schedules[jobIndex].enabled = enabled;
+			updatedJob = schedules[jobIndex];
+			return schedules;
+		});
+		res.status(200).json(updatedJob);
+	} catch (error) {
+		next(error);
+	}
 });
 
-app.patch('/api/schedules/all/disable', isAuthenticated, async (req, res) => {
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => (job.enabled = false));
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: 'Wszystkie harmonogramy zostały wstrzymane.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wstrzymać harmonogramów.' });
-    }
+const setAllSchedulesEnabled = async (res, next, enabled, filterFn = () => true) => {
+	try {
+		await updateSchedules(schedules => {
+			schedules.filter(filterFn).forEach(job => (job.enabled = enabled));
+			return schedules;
+		});
+		const messageAction = enabled ? 'wznowione' : 'wstrzymane';
+		res.status(200).json({ message: `Harmonogramy zostały ${messageAction}.` });
+	} catch (error) {
+		next(error);
+	}
+};
+
+app.patch('/api/schedules/all/disable', isAuthenticated, (req, res, next) => setAllSchedulesEnabled(res, next, false));
+app.patch('/api/schedules/all/enable', isAuthenticated, (req, res, next) => setAllSchedulesEnabled(res, next, true));
+
+app.patch('/api/schedules/device/:deviceId/disable', isAuthenticated, (req, res, next) => {
+	setAllSchedulesEnabled(res, next, false, job => job.deviceId === req.params.deviceId);
+});
+app.patch('/api/schedules/device/:deviceId/enable', isAuthenticated, (req, res, next) => {
+	setAllSchedulesEnabled(res, next, true, job => job.deviceId === req.params.deviceId);
 });
 
-app.patch('/api/schedules/device/:deviceId/disable', isAuthenticated, async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => {
-            if (job.deviceId === deviceId) {
-                job.enabled = false;
-            }
-        });
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały wstrzymane.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wstrzymać harmonogramów dla urządzenia.' });
-    }
-});
+const deleteSchedules = async (res, next, filterFn) => {
+	try {
+		await updateSchedules(schedules => schedules.filter(filterFn));
+		res.status(200).json({ message: 'Wybrane harmonogramy zostały usunięte.' });
+	} catch (error) {
+		next(error);
+	}
+};
 
-app.patch('/api/schedules/all/enable', isAuthenticated, async (req, res) => {
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => (job.enabled = true));
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: 'Wszystkie harmonogramy zostały wznowione.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wznowić harmonogramów.' });
-    }
-});
-
-app.patch('/api/schedules/device/:deviceId/enable', isAuthenticated, async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules.forEach(job => {
-            if (job.deviceId === deviceId) {
-                job.enabled = true;
-            }
-        });
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały wznowione.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się wznowić harmonogramów dla urządzenia.' });
-    }
-});
-
-app.delete('/api/schedules/all', isAuthenticated, async (req, res) => {
-    try {
-        for (const job of scheduledJobs.values()) {
-            job.cancel();
-        }
-        scheduledJobs.clear();
-        await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
-        res.status(200).json({ message: 'Wszystkie harmonogramy zostały pomyślnie usunięte.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie udało się usunąć wszystkich harmonogramów.' });
-    }
-});
-
-app.delete('/api/schedules/device/:deviceId', isAuthenticated, async (req, res) => {
-    const { deviceId } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        const schedulesToKeep = db.schedules.filter(job => job.deviceId !== deviceId);
-        db.schedules = schedulesToKeep;
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: `Harmonogramy dla urządzenia ${deviceId} zostały usunięte.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie można usunąć harmonogramów dla urządzenia.' });
-    }
-});
-
-app.delete('/api/schedules/:id', isAuthenticated, async (req, res) => {
-    const { id } = req.params;
-    try {
-        const data = await fs.readFile(DB_PATH, 'utf8');
-        const db = JSON.parse(data);
-        db.schedules = db.schedules.filter(job => job.id !== id);
-        await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-
-        await loadSchedulesAndRun();
-        res.status(200).json({ message: 'Harmonogram usunięty.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Nie można usunąć harmonogramu.' });
-    }
-});
-
+app.delete('/api/schedules/all', isAuthenticated, (req, res, next) => deleteSchedules(res, next, () => false));
+app.delete('/api/schedules/device/:deviceId', isAuthenticated, (req, res, next) =>
+	deleteSchedules(res, next, job => job.deviceId !== req.params.deviceId)
+);
+app.delete('/api/schedules/:id', isAuthenticated, (req, res, next) =>
+	deleteSchedules(res, next, job => job.id !== req.params.id)
+);
 
 // --- Ścieżka "catch-all" ---
-//Domyślny routing dla SPA po uwzględnieniu autoryzacji
 app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
+	res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
-// --- Uruchomienie serwera HTTP i dołączenie serwera WebSocket ---
-const server = http.createServer(app); // Używam wbudowanego modułu http
+// --- Centralny Error Handler ---
+const errorHandler = (err, req, res, next) => {
+	console.error(`[BŁĄD SERWERA] ${new Date().toISOString()}`);
+	console.error('Ścieżka:', req.path);
+	console.error('Wiadomość:', err.message);
+
+	// Logujemy stos wywołań tylko w trybie deweloperskim
+	if (process.env.NODE_ENV !== 'production') {
+		console.error('Stos:', err.stack);
+	}
+
+	const statusCode = err.statusCode || 500;
+
+	// Specjalna obsługa błędów z Axios (np. API Gardena)
+	if (err.isAxiosError && err.response) {
+		const axiosStatusCode = err.response.status;
+		return res.status(axiosStatusCode).json({
+			error: 'Wystąpił błąd podczas komunikacji z zewnętrznym serwisem. Spróbuj ponownie.',
+		});
+	}
+
+	// Generyczna odpowiedź dla wszystkich innych błędów
+	res.status(statusCode).json({
+		error: 'Wystąpił nieoczekiwany błąd serwera. Skontaktuj się z administratorem.',
+	});
+};
+
+app.use(errorHandler);
+
+// --- Uruchomienie serwera HTTP i WebSocket ---
+const server = http.createServer(app);
 
 const wss = new WebSocketServer({ noServer: true });
 
 wss.on('connection', (ws, req) => {
-    //Sprawdzamy, czy klient ma aktywną sesję
-    if (!req.session?.userId) {
-        console.log('[WSS] Odrzucono połączenie WebSocket - brak autoryzacji.');
-        ws.close(1008, 'Unauthorized');
-        return;
-    }
-    console.log('[WSS] Nowy klient (użytkownik: ' + req.session.username + ') połączony.');
-    ws.on('close', () => console.log('[WSS] Klient (przeglądarka) rozłączony.'));
-    ws.on('error', console.error);
+	if (!req.session?.userId) {
+		console.log('[WSS] Odrzucono połączenie WebSocket - brak autoryzacji.');
+		ws.close(1008, 'Unauthorized');
+		return;
+	}
+	console.log('[WSS] Nowy klient (użytkownik: ' + req.session.username + ') połączony.');
+	ws.on('close', () => console.log('[WSS] Klient (przeglądarka) rozłączony.'));
+	ws.on('error', console.error);
 });
 
-//Funkcja obsługująca upgrade połączenia WebSocket
 server.on('upgrade', function upgrade(request, socket, head) {
-    console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
+	console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
 
-    // Parsowanie sesji przed uaktualnieniem połączenia
-    sessionParser(request, {}, () => {
-        if (!request.session?.userId) {
-            console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
-            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-            socket.destroy();
-            return;
-        }
-
-        console.log('[WSS] Zezwolono na połączenie WebSocket - sesja autoryzowana.');
-
-        wss.handleUpgrade(request, socket, head, function done(ws) {
-            wss.emit('connection', ws, request);
-        });
-    });
+	sessionParser(request, {}, () => {
+		if (!request.session?.userId) {
+			console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
+			socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+			socket.destroy();
+			return;
+		}
+		console.log('[WSS] Zezwolono na połączenie WebSocket - sesja autoryzowana.');
+		wss.handleUpgrade(request, socket, head, function done(ws) {
+			wss.emit('connection', ws, request);
+		});
+	});
 });
-
 
 server.listen(PORT, () => {
-    console.log(`Serwer aplikacji i API działa na porcie ${PORT}`);
-    loadSchedulesAndRun();
-    startGardenaLiveStream();
+	console.log(`Serwer aplikacji i API działa na porcie ${PORT}`);
+	loadSchedulesAndRun();
+	startGardenaLiveStream();
 });
 
 function broadcast(data) {
-    const jsonData = JSON.stringify(data);
-    wss.clients.forEach(client => {
-        if (client.readyState === client.OPEN) {
-            client.send(jsonData);
-        }
-    });
+	const jsonData = JSON.stringify(data);
+	wss.clients.forEach(client => {
+		if (client.readyState === client.OPEN) {
+			client.send(jsonData);
+		}
+	});
 }
 
 // --- Kompletna logika połączenia z Gardena Realtime API ---
 async function startGardenaLiveStream() {
-    console.log('[Gardena WS] Próba nawiązania połączenia z API czasu rzeczywistego...');
-    try {
-        const token = await getAccessToken();
-        const headers = {
-            'Content-Type': 'application/vnd.api+json',
-            'x-api-key': GARDENA_API_KEY,
-            Authorization: 'Bearer ' + token,
-        };
+	try {
+		console.log('[Gardena WS] Próba nawiązania połączenia z API czasu rzeczywistego...');
+		const token = await getAccessToken();
+		const headers = {
+			'Content-Type': 'application/vnd.api+json',
+			'x-api-key': GARDENA_API_KEY,
+			Authorization: 'Bearer ' + token,
+		};
 
-        const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
-        if (!locationsResponse.data?.data?.length) {
-            console.error('[Gardena WS] Nie znaleziono lokalizacji. Nie można uruchomić WebSocket.');
-            return;
-        }
-        const locationId = locationsResponse.data.data[0].id;
-        console.log(`[Gardena WS] Uzyskano Location ID: ${locationId}`);
+		const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
+		if (!locationsResponse.data?.data?.length) {
+			console.error('[Gardena WS] Nie znaleziono lokalizacji. Nie można uruchomić WebSocket.');
+			return;
+		}
+		const locationId = locationsResponse.data.data[0].id;
+		console.log(`[Gardena WS] Uzyskano Location ID: ${locationId}`);
 
-        const wsPayload = {
-            data: {
-                type: 'WEBSOCKET',
-                id: uuidv4(),
-                attributes: { locationId },
-            },
-        };
-        const wsUrlResponse = await axios.post(`${GARDENA_SMART_API_BASE_URL}/websocket`, wsPayload, { headers });
-        const websocketUrl = wsUrlResponse.data.data.attributes.url;
-        console.log('[Gardena WS] Otrzymano tymczasowy adres WebSocket. Łączenie...');
+		const wsPayload = {
+			data: { type: 'WEBSOCKET', id: uuidv4(), attributes: { locationId } },
+		};
+		const wsUrlResponse = await axios.post(`${GARDENA_SMART_API_BASE_URL}/websocket`, wsPayload, { headers });
+		const websocketUrl = wsUrlResponse.data.data.attributes.url;
+		console.log('[Gardena WS] Otrzymano tymczasowy adres WebSocket. Łączenie...');
 
-        const gardenaSocket = new WebSocket(websocketUrl);
+		const gardenaSocket = new WebSocket(websocketUrl);
 
-        gardenaSocket.on('open', () => {
-            console.log('[Gardena WS] Połączono z Gardena Realtime API! Nasłuchiwanie na zmiany...');
-            setInterval(() => {
-                if (gardenaSocket.readyState === WebSocket.OPEN) {
-                    gardenaSocket.ping();
-                }
-            }, 150000); // Ping co 150 sekund
-        });
+		gardenaSocket.on('open', () => {
+			console.log('[Gardena WS] Połączono z Gardena Realtime API! Nasłuchiwanie na zmiany...');
+			setInterval(() => {
+				if (gardenaSocket.readyState === WebSocket.OPEN) {
+					gardenaSocket.ping();
+				}
+			}, 150000);
+		});
 
-        gardenaSocket.on('message', data => {
-            const message = JSON.parse(data.toString());
-            console.log('[Gardena WS] Otrzymano wiadomość:', message);
-            broadcast(message);
-        });
+		gardenaSocket.on('message', data => {
+			const message = JSON.parse(data.toString());
+			console.log('[Gardena WS] Otrzymano wiadomość:', message);
+			broadcast(message);
+		});
 
-        gardenaSocket.on('close', (code, reason) => {
-            console.log(
-                `[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Próba ponownego połączenia za 15 sekund...`
-            );
-            setTimeout(startGardenaLiveStream, 15000);
-        });
+		gardenaSocket.on('close', (code, reason) => {
+			console.log(
+				`[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Próba ponownego połączenia za 15 sekund...`
+			);
+			setTimeout(startGardenaLiveStream, 15000);
+		});
 
-        gardenaSocket.on('error', error => {
-            console.error('[Gardena WS] Wystąpił błąd połączenia:', error);
-        });
-    } catch (error) {
-        console.error(
-            '[Gardena WS] Nie udało się zainicjować połączenia WebSocket:',
-            error.response?.data || error.message
-        );
-        console.log('[Gardena WS] Ponowna próba za 15 minut...');
-        setTimeout(startGardenaLiveStream, 900000);
-    }
+		gardenaSocket.on('error', error => {
+			console.error('[Gardena WS] Wystąpił błąd połączenia:', error);
+		});
+	} catch (error) {
+		console.error(
+			'[Gardena WS] Nie udało się zainicjować połączenia WebSocket:',
+			error.response?.data || error.message
+		);
+		console.log('[Gardena WS] Ponowna próba za 15 minut...');
+		setTimeout(startGardenaLiveStream, 900000);
+	}
 }

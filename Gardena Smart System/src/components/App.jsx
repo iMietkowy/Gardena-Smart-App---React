@@ -5,12 +5,12 @@ import { useNotificationContext } from '../context/NotificationContext';
 import '../scss/main.scss';
 
 // Importy komponentów stron
-import HomePage from './HomePage';
-import DeviceList from './DeviceList';
-import DeviceDetailPage from './DeviceDetailPage';
-import SchedulePage from './SchedulePage';
-import NotFoundPage from './NotFoundPage';
-import LoginPage from './LoginPage';
+import HomePage from './pages/HomePage';
+import DeviceList from './pages/DeviceListPage';
+import DeviceDetailPage from './pages/DeviceDetailPage';
+import SchedulePage from './pages/SchedulePage';
+import NotFoundPage from './pages/NotFoundPage';
+import LoginPage from './pages/LoginPage';
 
 // Importy dla karuzeli statusów w nagłówku
 import Slider from 'react-slick';
@@ -18,14 +18,14 @@ import Slider from 'react-slick';
 
 // Importy dla ikon
 import { Bell, Menu, Sun, Moon, LogOut } from 'lucide-react';
-import gardenaLogo from '../img/logo.svg';
+import gardenaLogo from '../assets/img/logo.svg';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { fas } from '@fortawesome/free-solid-svg-icons';
 import { fab } from '@fortawesome/free-brands-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 // Inne hooki i utility
-import ToastNotification from './ToastNotification';
+import ToastNotification from './common/ToastNotification';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { getConsolidatedDeviceStatus } from '../utils/statusUtils';
 import { useWindowWidth } from '../hooks/useWindowWidth';

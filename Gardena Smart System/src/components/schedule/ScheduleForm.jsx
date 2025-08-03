@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNotificationContext } from '../context/NotificationContext';
-import CustomSelect from './CustomSelect';
-import { daysOfWeekUIOrder } from '../utils/constants';
+import { useNotificationContext } from '../../context/NotificationContext';
+import CustomSelect from '../common/CustomSelect';
+import { daysOfWeekUIOrder } from '../../utils/constants';
 
 const ScheduleForm = ({ devices, onAddSchedule }) => {
 	const { showToastNotification } = useNotificationContext();

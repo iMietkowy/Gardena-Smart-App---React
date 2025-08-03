@@ -1,5 +1,5 @@
 import React from 'react';
-import { daysOfWeekUIOrder } from '../utils/constants';
+import { daysOfWeekUIOrder } from '../../utils/constants';
 
 const ScheduleGrid = ({ tasks, onTaskClick }) => {
 	const hourOptions = Array.from({ length: 24 }, (_, i) => ({

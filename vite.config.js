@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 /**
- * Path to exercise folder
+ * Path to main folder
  */
 const exercisePath = 'Gardena Smart System';
 

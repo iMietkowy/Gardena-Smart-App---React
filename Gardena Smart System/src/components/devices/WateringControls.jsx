@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useControlForm } from '../hooks/useControlForm';
-import { useDurationInput } from '../hooks/useDurationInput'; 
+import { useControlForm } from '../../hooks/useControlForm';
+import { useDurationInput } from '../../hooks/useDurationInput';
+import DurationSelector from '../common/DurationSelector'; // Import nowego komponentu
 
 const WateringControls = ({ device, onCommand }) => {
 	const maxDuration = 90; // W minutach
-	const {
-		isSubmitting,
-		handleSubmit,
-		showToastNotification,
-	} = useControlForm(onCommand);
-
+	const { isSubmitting, handleSubmit, showToastNotification } = useControlForm(onCommand);
 
 	const {
 		durationValue,
@@ -21,7 +17,7 @@ const WateringControls = ({ device, onCommand }) => {
 	} = useDurationInput(maxDuration, 'minutes');
 
 	const [selectedValveServiceId, setSelectedValveServiceId] = useState('');
-	
+
 	useEffect(() => {
 		if (device._valveServices?.length > 0) {
 			const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
@@ -118,35 +114,16 @@ const WateringControls = ({ device, onCommand }) => {
 			)}
 
 			{selectedValveServiceId && (
-				<div className='duration-selection-container'>
-					<label>Czas trwania:</label>
-					<div className='btn-group'>
-						{durationPresets.map(preset => (
-							<button
-								type='button'
-								key={preset.minutes}
-								className={`btn-toggle ${durationValue == preset.minutes ? 'active' : ''}`}
-								onClick={() => handlePresetClick(preset.minutes)}
-							>
-								{preset.label}
-							</button>
-						))}
-					</div>
-					<div className='duration-input-group'>
-						<label htmlFor='customMinutesInput'>Niestandardowy czas (w minutach):</label>
-						<input
-							type='text'
-							className='custom-duration-input'
-							id='customMinutesInput'
-							value={customInputValue}
-							onChange={handleDurationChange}
-							min='0'
-							max={maxDuration}
-							step='1'
-							placeholder='np. 45'
-						/>
-					</div>
-				</div>
+				<DurationSelector
+					presets={durationPresets}
+					durationValue={durationValue}
+					onPresetClick={handlePresetClick}
+					customInputValue={customInputValue}
+					onCustomInputChange={handleDurationChange}
+					maxDuration={maxDuration}
+					unitLabel='minutach'
+					inputPlaceholder='np. 45'
+				/>
 			)}
 
 			<div className='btn-group' style={{ justifyContent: 'center', marginTop: '1rem' }}>
