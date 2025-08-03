@@ -152,7 +152,9 @@ const SchedulePage = () => {
 					{loading && <p>Ładowanie...</p>}
 					{error && (
 						<div style={{ padding: '2rem 0', textAlign: 'center' }}>
-							<p className='error-title' style={{fontWeight: 700, color: '#ef4444'}}>Błąd:</p>
+							<p className='error-title' style={{ fontWeight: 700, color: '#ef4444' }}>
+								Błąd:
+							</p>
 							<p style={{ color: 'var(--text-light)', marginTop: '0.5rem', fontWeight: 600 }}>{error}</p>
 						</div>
 					)}

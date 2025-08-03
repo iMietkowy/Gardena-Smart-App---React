@@ -16,19 +16,19 @@ export const useControlForm = (onSendCommand) => {
             setControlAction('');
             setControlValue('');
         } catch (error) {
-    } finally {
-        setIsSubmitting(false);
-    }
-};
+            showToastNotification(`Wystąpił błąd podczas wysyłania komendy: ${error.message}`, 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-return {
-    isSubmitting,
-    controlAction,
-    setControlAction,
-    controlValue,
-    setControlValue,
-    handleSubmit,
-    showToastNotification,
-    showToastNotification,
-};
+    return {
+        isSubmitting,
+        controlAction,
+        setControlAction,
+        controlValue,
+        setControlValue,
+        handleSubmit,
+        showToastNotification,
+    };
 };

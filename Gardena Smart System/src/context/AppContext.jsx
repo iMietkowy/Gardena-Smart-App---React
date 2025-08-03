@@ -8,6 +8,9 @@ export const AppProvider = ({ children }) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+    // NOWE: Dodanie stanu autoryzacji
+    const [isAuthenticated, setIsAuthenticated] = useState(null);
+    const [user, setUser] = useState(null);
 
 	const { addNotificationToBell, showToastNotification } = useNotificationContext();
 
@@ -21,6 +24,7 @@ export const AppProvider = ({ children }) => {
 	};
 
 	const fetchGardenaDevices = useCallback(async () => {
+        if (!isAuthenticated) return; // NIE WYWOŁUJ JEŚLI NIEZALOGOWANY
 		try {
 			setError(null);
 			const response = await fetch('/api/gardena/devices');
@@ -85,10 +89,11 @@ export const AppProvider = ({ children }) => {
 				} else if (serviceTypes.has('POWER_SOCKET')) determinedType = 'SMART_PLUG';
 
 				if (determinedType === 'SMART_WATERING_COMPUTER' && device._valveServices.size === 0) {
+			
 					device._valveServices.set(device.id, {
 						id: device.id,
-						type: 'SELF_VALVE',
-						attributes: device.attributes,
+						type: 'SELF_VALVE', 
+						attributes: device.attributes, 
 					});
 				}
 
@@ -97,147 +102,171 @@ export const AppProvider = ({ children }) => {
 					type: determinedType,
 					displayName: device._displayName,
 					commonServiceId: device._commonServiceId,
-					_serviceTypes: undefined,
-					_displayName: undefined,
-					_valveServices: Array.from(device._valveServices.values()),
+					_serviceTypes: undefined, 
+					_displayName: undefined, 
+					_valveServices: Array.from(device._valveServices.values()), 
 				};
 			});
-
 			setDevices(finalDevices);
-			console.log('[AppContext] Urządzenia załadowane:', finalDevices);
+            console.log('[AppContext] Urządzenia załadowane:', finalDevices);
 		} catch (err) {
 			setError(`Failed to fetch devices: ${err.message}.`);
-			console.error('[AppContext] Błąd ładowania urządzeń:', err);
-		}
-	}, []);
+            console.error('[AppContext] Błąd ładowania urządzeń:', err);
+		} finally {
+            setLoading(false);
+        }
+	}, [isAuthenticated]);
+
+    // NOWE: Funkcje do zarządzania autoryzacją
+    const checkAuthStatus = useCallback(async () => {
+    try {
+        const response = await fetch('/api/check-auth');
+        // Sprawdź, czy odpowiedź jest OK (status 200-299)
+        if (response.ok) {
+            const data = await response.json();
+            setIsAuthenticated(true);
+            setUser(data.username);
+            fetchGardenaDevices();
+        } else {
+            // Jeśli status nie jest OK (np. 401), ustaw stan na "niezalogowany"
+            setIsAuthenticated(false);
+            setUser(null);
+        }
+    } catch (err) {
+        // Obsługa błędów sieciowych i innych
+        console.error("Błąd sprawdzania statusu autoryzacji:", err);
+        setIsAuthenticated(false);
+        setUser(null);
+    }
+}, [fetchGardenaDevices]);
+
+    const login = (username) => {
+        setIsAuthenticated(true);
+        setUser(username);
+        fetchGardenaDevices(); // Załaduj urządzenia po zalogowaniu
+    };
+
+    const logout = async () => {
+    try {
+        await fetch('/api/logout', { method: 'POST' }); 
+    } catch (err) {
+        console.error("Błąd podczas wylogowywania:", err);
+    } finally {
+        setIsAuthenticated(false);
+        setUser(null);
+        setDevices([]);
+    }
+};
 
 	useEffect(() => {
-		const initialFetch = async () => {
-			setLoading(true);
-			await fetchGardenaDevices();
-			setLoading(false);
-		};
-		initialFetch();
+        if (isAuthenticated) {
+            const socket = new WebSocket(`ws://${window.location.hostname}:3001`);
 
-		const socket = new WebSocket(`ws://${window.location.hostname}:3001`);
+            socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
+            socket.onclose = (event) => console.log('[WebSocket] Rozłączono.', event.code, event.reason);
+            socket.onerror = err => console.error('[WebSocket] Błąd:', err);
 
-		(socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.')), console.trace('no zobaczmy');
-		socket.onclose = event =>
-			console.log('[WebSocket] Rozłączono.', event.code, event.reason, console.trace('no zobaczmy'));
-		socket.onerror = err => console.error('[WebSocket] Błąd:', err);
+            socket.onmessage = event => {
+                try {
+                    const updatedService = JSON.parse(event.data);
+                    console.log('[WebSocket Message Received Raw]', updatedService);
 
-		socket.onmessage = event => {
-			try {
-				const updatedService = JSON.parse(event.data);
-				console.log('[WebSocket Message Received Raw]', updatedService);
+                    setDevices(prevDevices => {
+                        let mainDeviceIdToUpdate = null;
+                        
+                        if (updatedService.relationships?.device?.data?.id) {
+                            mainDeviceIdToUpdate = updatedService.relationships.device.data.id;
+                        }
+                        else if (['DEVICE', 'MOWER', 'POWER_SOCKET', 'SMART_IRRIGATION_CONTROL', 'COMMON', 'VALVE_SET'].includes(updatedService.type)) {
+                            mainDeviceIdToUpdate = updatedService.id;
+                        }
+                        else if (updatedService.id.includes(':')) {
+                            const parts = updatedService.id.split(':');
+                            if (parts[0].length === 36) { 
+                                mainDeviceIdToUpdate = parts[0];
+                            }
+                        }
+                        
+                        if (!mainDeviceIdToUpdate) {
+                            console.warn('[AppContext] Nie mogę zidentyfikować ID głównego urządzenia dla aktualizacji:', updatedService);
+                            return prevDevices; 
+                        }
 
-				setDevices(prevDevices => {
-					let mainDeviceIdToUpdate = null;
+                        console.log('[AppContext] Identyfikuję główne urządzenie do aktualizacji z ID:', mainDeviceIdToUpdate);
 
-					if (updatedService.relationships?.device?.data?.id) {
-						mainDeviceIdToUpdate = updatedService.relationships.device.data.id;
-					} else if (
-						['DEVICE', 'MOWER', 'POWER_SOCKET', 'SMART_IRRIGATION_CONTROL', 'COMMON', 'VALVE_SET'].includes(
-							updatedService.type
-						)
-					) {
-						mainDeviceIdToUpdate = updatedService.id;
-					} else if (updatedService.id.includes(':')) {
-						const parts = updatedService.id.split(':');
-						if (parts[0].length === 36) {
-							mainDeviceIdToUpdate = parts[0];
-						}
-					}
+                        const oldDeviceState = prevDevices.find(d => d.id === mainDeviceIdToUpdate);
 
-					if (!mainDeviceIdToUpdate) {
-						console.warn(
-							'[AppContext] Nie mogę zidentyfikować ID głównego urządzenia dla aktualizacji:',
-							updatedService
-						);
-						return prevDevices;
-					}
+                        if (!oldDeviceState) {
+                            console.warn('[AppContext] Otrzymano aktualizację dla nieznanego GŁÓWNEGO urządzenia:', mainDeviceIdToUpdate, 'Wiadomość:', updatedService);
+                            return prevDevices;
+                        }
 
-					console.log('[AppContext] Identyfikuję główne urządzenie do aktualizacji z ID:', mainDeviceIdToUpdate);
+                        const newDevices = prevDevices.map(device => {
+                            if (device.id === mainDeviceIdToUpdate) {
+                                const newDevice = JSON.parse(JSON.stringify(device));
+                                
+                                if (['DEVICE', 'MOWER', 'POWER_SOCKET', 'SMART_IRRIGATION_CONTROL', 'COMMON', 'VALVE_SET'].includes(updatedService.type)) {
+                                    Object.assign(newDevice.attributes, updatedService.attributes);
+                                }
 
-					const oldDeviceState = prevDevices.find(d => d.id === mainDeviceIdToUpdate);
+                                if (updatedService.type === 'VALVE' && newDevice.type === 'SMART_WATERING_COMPUTER') {
+                                    const updatedValveId = updatedService.id;
+                                    newDevice._valveServices = newDevice._valveServices.map(valve => {
+                                        if (valve.id === updatedValveId) {
+                                            
+                                            return { ...valve, attributes: { ...valve.attributes, ...updatedService.attributes } };
+                                        }
+                                        return valve;
+                                    });
+                                }
+                                
+                                console.log('[AppContext] Urządzenie po aktualizacji (w setDevices):', newDevice);
+                                return newDevice;
+                            }
+                            return device;
+                        });
+                        console.log('[AppContext] Nowa tablica urządzeń (w setDevices):', newDevices);
+                        return newDevices;
+                    });
 
-					if (!oldDeviceState) {
-						console.warn(
-							'[AppContext] Otrzymano aktualizację dla nieznanego GŁÓWNEGO urządzenia:',
-							mainDeviceIdToUpdate,
-							'Wiadomość:',
-							updatedService
-						);
-						return prevDevices;
-					}
+                } catch (e) {
+                    console.error('[AppContext] Błąd przetwarzania wiadomości WebSocket:', e);
+                    showToastNotification('Wystąpił błąd podczas aktualizacji danych urządzenia z serwera.', 'error');
+                }
+            };
 
-					const newDevices = prevDevices.map(device => {
-						if (device.id === mainDeviceIdToUpdate) {
-							const newDevice = JSON.parse(JSON.stringify(device));
+            return () => {
+                console.log('[WebSocket] Zamykam połączenie...');
+                socket.close();
+            };
+        }
+    }, [isAuthenticated, fetchGardenaDevices, addNotificationToBell, showToastNotification]);
 
-							if (
-								['DEVICE', 'MOWER', 'POWER_SOCKET', 'SMART_IRRIGATION_CONTROL', 'COMMON', 'VALVE_SET'].includes(
-									updatedService.type
-								)
-							) {
-								Object.assign(newDevice.attributes, updatedService.attributes);
-							}
+    
+    const prevDevicesRef = useRef([]);
 
-							if (updatedService.type === 'VALVE' && newDevice.type === 'SMART_WATERING_COMPUTER') {
-								const updatedValveId = updatedService.id;
-								newDevice._valveServices = newDevice._valveServices.map(valve => {
-									if (valve.id === updatedValveId) {
-										return { ...valve, attributes: { ...valve.attributes, ...updatedService.attributes } };
-									}
-									return valve;
-								});
-							}
+    useEffect(() => {
+        if (isAuthenticated) {
+            if (prevDevicesRef.current.length > 0) {
+                devices.forEach(currentDevice => {
+                    const prevDevice = prevDevicesRef.current.find(d => d.id === currentDevice.id);
 
-							console.log('[AppContext] Urządzenie po aktualizacji (w setDevices):', newDevice);
-							return newDevice;
-						}
-						return device;
-					});
-					console.log('[AppContext] Nowa tablica urządzeń (w setDevices):', newDevices);
-					return newDevices;
-				});
-			} catch (e) {
-				console.error('[AppContext] Błąd przetwarzania wiadomości WebSocket:', e);
-				showToastNotification('Wystąpił błąd podczas aktualizacji danych urządzenia z serwera.', 'error');
-			}
-		};
+                    if (prevDevice && currentDevice.type === 'MOWER') {
+                        const wasMowing = prevDevice.attributes?.activity?.value === 'mowing' || prevDevice.attributes?.activity?.value === 'ok_cutting';
+                        const isNowParkedOrCharging = currentDevice.attributes?.activity?.value === 'parked' || currentDevice.attributes?.activity?.value === 'charging';
 
-		return () => {
-			console.log('[WebSocket] Zamykam połączenie...');
-			socket.close();
-		};
-	}, [fetchGardenaDevices, addNotificationToBell, showToastNotification]);
+                        if (wasMowing && isNowParkedOrCharging) {
+                            addNotificationToBell(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
+                            showToastNotification(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
+                        }
+                    }
+                });
+            }
+        }
+        
+        prevDevicesRef.current = devices;
+    }, [devices, addNotificationToBell, showToastNotification, isAuthenticated]);
 
-	const prevDevicesRef = useRef([]);
-
-	useEffect(() => {
-		if (prevDevicesRef.current.length > 0) {
-			devices.forEach(currentDevice => {
-				const prevDevice = prevDevicesRef.current.find(d => d.id === currentDevice.id);
-
-				if (prevDevice && currentDevice.type === 'MOWER') {
-					const wasMowing =
-						prevDevice.attributes?.activity?.value === 'mowing' ||
-						prevDevice.attributes?.activity?.value === 'ok_cutting';
-					const isNowParkedOrCharging =
-						currentDevice.attributes?.activity?.value === 'parked' ||
-						currentDevice.attributes?.activity?.value === 'charging';
-
-					if (wasMowing && isNowParkedOrCharging) {
-						addNotificationToBell(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
-						showToastNotification(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
-					}
-				}
-			});
-		}
-
-		prevDevicesRef.current = devices;
-	}, [devices, addNotificationToBell, showToastNotification]);
 
 	const value = {
 		devices,
@@ -246,6 +275,11 @@ export const AppProvider = ({ children }) => {
 		theme,
 		toggleTheme,
 		fetchGardenaDevices,
+        isAuthenticated,
+        user,
+        login,
+        logout,
+        checkAuthStatus,
 	};
 
 	return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

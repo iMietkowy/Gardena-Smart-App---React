@@ -8,6 +8,7 @@
 @use './common/global';
 @use './common/buttons';
 @use './common/custom_select';
+@use './layout/login_page_style';
 @use './layout/header';
 @use './layout/hero';
 @use './common/loading_and_errors';
@@ -21,5 +22,3 @@
 @use './common/toast';
 @use './components/battery_status';
 @use './components/weather_widget'; 
-@use "slick-carousel/slick/slick.css";
-@use "slick-carousel/slick/slick-theme.css";

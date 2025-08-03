@@ -16,7 +16,6 @@ const WeatherWidget = () => {
                 const { data, timestamp } = JSON.parse(cachedWeather);
                 const now = new Date().getTime();
                 
-                
                 const CACHE_DURATION = 30 * 1000; // 30 sekund w milisekundach 
 
                 if (now - timestamp < CACHE_DURATION) {
@@ -66,7 +65,7 @@ const WeatherWidget = () => {
                 },
                 (error) => {
                     console.error("Błąd geolokalizacji:", error);
-                    let errorMessage = "Nie można uzyskać Twojej lokalacji dla prognozy pogody.";
+                    let errorMessage = "Nie można uzyskać Twojej lokalizacji dla prognozy pogody.";
                     if (error.code === error.PERMISSION_DENIED) {
                         errorMessage = "Odmówiono dostępu do lokalizacji. Aby zobaczyć pogodę, zezwól na dostęp w ustawieniach przeglądarki.";
                     } else if (error.code === error.POSITION_UNAVAILABLE) {
@@ -105,19 +104,19 @@ const WeatherWidget = () => {
                 src={`https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`}
                 alt={weatherData.weather[0].description}
             />
-
+            
             {/* Kontener dla statusów pogodowych - weather-status-grid */}
             <div className="weather-status-grid">
                 <p>Temperatura: {weatherData.main.temp.toFixed(1)}°C</p>
                 <p>Odczuwalna: {weatherData.main.feels_like.toFixed(1)}°C</p>
                 <p>Warunki: {weatherData.weather[0].description}</p>
-
+                
                 {/* Ostrzeżenie o przymrozku, jeśli temperatura jest niska */}
                 {weatherData.main.temp < 2 && ( 
                     <p className="weather-warning frost-warning full-width">Uwaga: Możliwy przymrozek!</p>
                 )}
-
                 {/* Informacja o opadach deszczu i ostrzeżenie o dużych opadach */}
+                
                 {weatherData.rain && (
                     <>
                         {weatherData.rain['1h'] && (
@@ -138,7 +137,7 @@ const WeatherWidget = () => {
                         )}
                     </>
                 )}
-
+                
                 {/* Informacja o opadach śniegu i ostrzeżenie o dużych opadach */}
                 {weatherData.snow && (
                     <>

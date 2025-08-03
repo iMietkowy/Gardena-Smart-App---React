@@ -13,7 +13,6 @@ const HomePage = () => {
 				<button onClick={() => navigate('/devices')} className='btn btn--primary btn--pill'>
 					Moje urządzenia
 				</button>
-
 				<div className='home-page-weather-widget-centered'>
 					<WeatherWidget />
 				</div>

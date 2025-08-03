@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { useNotificationContext } from '../context/NotificationContext';
@@ -9,14 +9,15 @@ import HomePage from './HomePage';
 import DeviceList from './DeviceList';
 import DeviceDetailPage from './DeviceDetailPage';
 import SchedulePage from './SchedulePage';
-import NotFoundPage from './NotFoundPage'; // Upewnij się, że ten plik istnieje
+import NotFoundPage from './NotFoundPage';
+import LoginPage from './LoginPage';
 
 // Importy dla karuzeli statusów w nagłówku
 import Slider from 'react-slick';
-// Style slick-carousel są teraz importowane w src/main.jsx, aby uniknąć problemów z @charset
+// Style slick-carousel są importowane w src/main.jsx, aby uniknąć problemów z @charset
 
 // Importy dla ikon
-import { Bell, Menu, Sun, Moon } from 'lucide-react';
+import { Bell, Menu, Sun, Moon, LogOut } from 'lucide-react';
 import gardenaLogo from '../img/logo.svg';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { fas } from '@fortawesome/free-solid-svg-icons';
@@ -27,11 +28,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import ToastNotification from './ToastNotification';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { getConsolidatedDeviceStatus } from '../utils/statusUtils';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 
 library.add(fas, fab);
 
 const App = () => {
-	const { loading, error, devices, theme, toggleTheme } = useAppContext();
+	const { loading, error, devices, theme, toggleTheme, isAuthenticated, logout, checkAuthStatus } = useAppContext();
 	const {
 		notifications,
 		toastNotifications,
@@ -42,6 +44,7 @@ const App = () => {
 
 	const navigate = useNavigate();
 	const location = useLocation();
+	const windowWidth = useWindowWidth();
 
 	const [showNotificationPopup, setShowNotificationPopup] = useState(false);
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -50,6 +53,10 @@ const App = () => {
 	const notificationBellButtonRef = useRef(null);
 	const mobileNavRef = useRef(null);
 	const hamburgerButtonRef = useRef(null);
+
+    useEffect(() => {
+        checkAuthStatus();
+    }, [checkAuthStatus]);
 
     useClickOutside([notificationPopupRef, notificationBellButtonRef], () => {
         setShowNotificationPopup(false);
@@ -65,24 +72,28 @@ const App = () => {
         dots: false,
         infinite: true,
         speed: 500,
-        slidesToShow: 3, // Domyślnie dla bardzo szerokich ekranów
+        slidesToShow: 3, 
         slidesToScroll: 1,
         autoplay: true,
         autoplaySpeed: 4000,
         arrows: false,
         responsive: [
             {
-                breakpoint: 1650, // Zmieniony breakpoint
+                breakpoint: 1650,
                 settings: {
                     slidesToShow: 2,
                     slidesToScroll: 1,
+                    infinite: false,
+                    autoplay: false,
                 }
             },
             {
-                breakpoint: 1430, // Zmieniony breakpoint
+                breakpoint: 1430,
                 settings: {
                     slidesToShow: 1,
                     slidesToScroll: 1,
+                    infinite: false,
+                    autoplay: false,
                 }
             },
             {
@@ -90,6 +101,8 @@ const App = () => {
                 settings: {
                     slidesToShow: 1,
                     slidesToScroll: 1,
+                    infinite: false,
+                    autoplay: false,
                 }
             }
         ]
@@ -99,21 +112,53 @@ const App = () => {
 		navigate(path);
 		setIsMenuOpen(false);
 	};
-    
-    // Tworzenie komponentów stron wewnątrz App
+
 	const DevicesPage = () => {
 		if (loading) return <div className='loading-indicator'><div className='spinner'></div><p>Ładowanie urządzeń...</p></div>;
-		if (error) return <div className='error-message'><p className='error-title'>Błąd:</p><p>{error}</p><button onClick={() => navigate('/')} className="btn btn--secondary btn--pill">Wróć</button></div>;
+		if (error) return <div className='error-message'><p className='error-title'>Błąd:</p><p>{error}</p><button onClick={() => handleNavigate('/')} className="btn btn--secondary btn--pill">Wróć</button></div>;
 		return <DeviceList />;
 	};
-    const NotFoundPage = () => (
-		<div className='not-found-page'>
-			<h2>Nie znaleziono strony!</h2>
-			<button onClick={() => navigate('/')} className="btn btn--secondary btn--pill">Wróć na stronę główną</button>
-		</div>
-	);
 
-    const isSliderEnabled = devices.length > 1;
+    if (isAuthenticated === null) {
+        return (
+            <div className='app-container'>
+                <div className='loading-indicator'><div className='spinner'></div><p>Sprawdzanie autoryzacji...</p></div>
+            </div>
+        );
+    }
+    
+    if (isAuthenticated === false) {
+        return (
+            <div className='app-container'>
+                <Routes>
+                    <Route path='*' element={<LoginPage />} />
+                </Routes>
+            </div>
+        );
+    }
+    
+    // Dynamiczne ustawienia dla slajdera, aby był statyczny przy małej liczbie urządzeń
+    const dynamicSettings = {
+        ...settings,
+        slidesToShow: devices.length,
+        autoplay: devices.length > 3,
+        infinite: devices.length > 3
+    };
+
+    if (windowWidth <= 1650) {
+        dynamicSettings.slidesToShow = devices.length;
+        dynamicSettings.autoplay = devices.length > 2;
+        dynamicSettings.infinite = devices.length > 2;
+    }
+
+    if (windowWidth <= 1430) {
+        dynamicSettings.slidesToShow = devices.length;
+        dynamicSettings.autoplay = devices.length > 1;
+        dynamicSettings.infinite = devices.length > 1;
+    }
+
+    const isStaticLayout = devices.length <= dynamicSettings.slidesToShow && windowWidth > 1430;
+
 
 	return (
 		<div className='app-container'>
@@ -123,8 +168,7 @@ const App = () => {
 						<img src={gardenaLogo} alt='Logo Gardena' />
 					</h1>
 
-                    {/* Sekcja karuzeli statusów urządzeń w nagłówku */}
-					<div className='header-center-section'>
+                    <div className='header-center-section'>
                         {error ? (
                             <div className='header-center-section-placeholder error-message-header'>
                                 <p className='error-title-small'>Błąd</p>
@@ -136,14 +180,9 @@ const App = () => {
                                 <p>Ładowanie statusów urządzeń...</p>
                             </div>
                         ) : devices.length > 0 ? (
-                            // Dodatkowa klasa do kontenera, gdy slajder jest statyczny
-                            <div className={devices.length <= settings.slidesToShow ? 'header-center-section--static-layout' : ''}>
+                            <div className={isStaticLayout ? 'header-center-section--static-layout' : ''}>
                                 <Slider
-                                    {...settings}
-                                    slidesToShow={Math.min(devices.length, settings.slidesToShow)}
-                                    slidesToScroll={Math.min(devices.length, settings.slidesToScroll)}
-                                    autoplay={devices.length > settings.slidesToShow}
-                                    infinite={devices.length > settings.slidesToShow}
+                                    {...dynamicSettings}
                                 >
                                     {devices.map(device => {
                                         const statusInfo = getConsolidatedDeviceStatus(device);
@@ -247,6 +286,9 @@ const App = () => {
                                     </div>
                                 )}
                             </div>
+                            <button onClick={logout} className="btn-icon-action">
+                                <LogOut size={20} />
+                            </button>
                             <button
                                 className='hamburger-menu-button'
                                 onClick={() => setIsMenuOpen(prev => !prev)}

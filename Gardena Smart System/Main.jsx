@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './src/components/App';
 import { AppProvider } from './src/context/AppContext';
-import { NotificationProvider } from './src/context/NotificationContext'; 
+import { NotificationProvider } from './src/context/NotificationContext';
 
-
+// Import stylów Slick Carousel bezpośrednio w JS, aby uniknąć problemu @charset w SCSS
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 const container = document.getElementById('app');
 const root = createRoot(container);

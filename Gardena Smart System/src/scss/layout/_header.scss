@@ -33,20 +33,38 @@
 	}
 
 	.header-center-section {
-		display: none; /* Domyślnie ukryte na małych ekranach (poniżej 992px) */
+		display: none;
 
-		@media (min-width: 992px) {
-			/* Widoczne na desktopach */
+		@media (min-width: 1150px) {
 			display: flex;
 			align-items: center;
 			flex-grow: 1;
 			justify-content: center;
 			padding: 0 1rem;
 			min-width: 0;
-			
 		}
+        
+        // NOWA REGUŁA: Styl dla układu statycznego (bez karuzeli)
+        &--static-layout {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            min-width: 0;
+            flex-grow: 1;
 
-		/* Ustawienia dla karuzeli i slajdów */
+            @media (max-width: 1430px) {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+        }
+        
+        // Zmień margines dla placeholderów w nagłówku
+        .header-center-section-placeholder {
+            margin: auto;
+        }
+
+
 		.slick-slider {
 			width: 100%;
 			max-width: 800px;
@@ -57,9 +75,13 @@
 				max-width: 550px;
 			}
 
-			@media (min-width: 992px) and (max-width: 1430px) {
+			@media (min-width: 1150px) and (max-width: 1430px) {
 				max-width: 350px;
 			}
+			
+            .slick-list {
+                padding: 0 !important;
+            }
 
 			.slick-track {
 				display: flex;
@@ -81,21 +103,32 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
+            padding: 0 5px; /* ZMIANA: Dodatkowy padding dla mniejszych slajdów */
 
 			.robot-status-indicator {
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				white-space: nowrap;
-				text-overflow: ellipsis;
-				overflow: hidden;
+                min-width: 0; 
+                flex-wrap: nowrap; /* ZMIANA: zapobiega zawijaniu wierszy na poziomie statusu */
+                
+                @media (max-width: 1430px) {
+                    flex-direction: column;
+                    text-align: center;
+                }
 
-				.status-dot {
+                .status-dot {
 					width: 10px;
 					height: 10px;
 					border-radius: 50%;
 					margin-right: 0.5rem;
 					flex-shrink: 0;
+                    
+                    @media (max-width: 1430px) {
+                        margin-right: 0;
+                        margin-bottom: 0.25rem;
+                    }
+
 					&.status-online {
 						background-color: v.$status-online;
 					}
@@ -116,14 +149,30 @@
 						background-color: v.$status-unknown;
 					}
 				}
+
 				.status-text {
 					font-size: 0.9rem;
 					color: var(--text-light);
-					white-space: nowrap;
+                    min-width: 0; 
+                    overflow: hidden; 
+                    text-overflow: ellipsis; 
+					
 					strong {
 						font-weight: 600;
 						color: var(--text-primary);
+                        // ZMIANA: Powrót do układu wierszowego dla nazwy urządzenia na dużych ekranach
+                        display: inline;
+                        margin-right: 0.5rem;
+                        
+                        @media (max-width: 1430px) {
+                            display: block;
+                            margin-right: 0;
+                            white-space: nowrap;
+                        }
 					}
+                    @media (min-width: 1431px) {
+                        white-space: nowrap; /* ZMIANA: Tekst statusu w jednej linii na dużych ekranach */
+                    }
 				}
 			}
 		}
@@ -166,7 +215,7 @@
 
 	.desktop-nav {
 		display: none;
-		@media (min-width: 768px) {
+		@media (min-width: 867px) {
 			display: flex;
 		}
 		ul {
@@ -345,7 +394,7 @@
 		svg {
 			color: var(--text-primary);
 		}
-		@media (min-width: 768px) {
+		@media (min-width: 866px) {
 			display: none;
 		}
 	}
