@@ -471,7 +471,7 @@ server.on('upgrade', function upgrade(request, socket, head) {
 	console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
 
 	sessionParser(request, {}, () => {
-		if (!req.session?.userId) {
+		if (!request.session?.userId) {
 			console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
 			socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
 			socket.destroy();
