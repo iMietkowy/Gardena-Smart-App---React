@@ -31,7 +31,7 @@ app.use(express.json());
 
 //Konfiguracja sesji.
 const sessionParser = session({
-	secret: process.env.SESSION_SECRET || 'your_session_secret_key',
+	secret: process.env.SESSION_SECRET,
 	resave: false,
 	saveUninitialized: false,
 	cookie: { secure: process.env.NODE_ENV === 'production' },
