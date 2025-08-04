@@ -96,7 +96,14 @@ export const AppProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (isAuthenticated) {
-			const socket = new WebSocket(`ws://${window.location.host}`);
+			// Dynamiczne tworzenie adresu URL dla WebSocket w zależności od środowiska
+			const isProduction = import.meta.env.PROD;
+			const wsProtocol = isProduction ? 'wss' : 'ws';
+			const backendHost = isProduction
+				? window.location.host.replace('client', 'server') // Działa dla nazw na Render.com
+				: 'localhost:3001'; // Dla środowiska deweloperskiego
+
+			const socket = new WebSocket(`${wsProtocol}://${backendHost}`);
 
 			socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
 			socket.onclose = event => console.log('[WebSocket] Rozłączono.', event.code, event.reason);
