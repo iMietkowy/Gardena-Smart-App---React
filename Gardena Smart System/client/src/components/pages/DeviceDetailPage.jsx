@@ -7,9 +7,9 @@ import WateringControls from '@/components/devices/WateringControls';
 import PlugControls from '@/components/devices/PlugControls';
 import ValveCard from '@/components/devices/ValveCard';
 import DeviceStatusDisplay from '@/components/devices/DeviceStatusDisplay.jsx';
-import mowerImage from '@/assets/img/mower.png';
-import wheelImage from '@/assets/img/wheel.png';
-import grassImage from '@/assets/img/grass.png';
+import mowerImage from '@/assets/img/Mower.png';
+import wheelImage from '@/assets/img/Wheel.png';
+import grassImage from '@/assets/img/Grass.png';
 import ParkMowerModal from '@/components/devices/ParkMowerModal.jsx';
 
 const DeviceDetailPage = () => {
