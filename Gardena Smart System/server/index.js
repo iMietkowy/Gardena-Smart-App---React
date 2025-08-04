@@ -26,7 +26,12 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+// Zaktualizowana konfiguracja CORS dla produkcji
+app.use(cors({
+    origin: 'https://gardena-smart-app-client.onrender.com', // Tutaj wpisz dokładny URL Twojego frontendu
+    credentials: true,
+}));
+
 app.use(express.json());
 
 //Konfiguracja sesji.
@@ -34,7 +39,12 @@ const sessionParser = session({
 	secret: process.env.SESSION_SECRET,
 	resave: false,
 	saveUninitialized: false,
-	cookie: { secure: process.env.NODE_ENV === 'production' },
+	cookie: { 
+        
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        
+    },
 });
 app.use(sessionParser);
 
@@ -48,11 +58,6 @@ const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('ad
 // --- Serwowanie statycznego frontendu z warunkiem autoryzacji ---
 const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
 
-// Middleware do serwowania plików statycznych TYLKO w trybie produkcyjnym
-// if (process.env.NODE_ENV === 'production') {
-// 	app.use(express.static(frontendDistPath));
-// 	console.log(`[INFO] Serwowanie statycznych plików z: ${frontendDistPath}`);
-// }
 
 // --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
@@ -416,13 +421,6 @@ app.delete('/api/schedules/:id', isAuthenticated, (req, res, next) =>
 	deleteSchedules(res, next, job => job.id !== req.params.id)
 );
 
-// --- Ścieżka "catch-all" dla produkcji ---
-// Ta ścieżka musi być na końcu, aby przechwytywać wszystkie inne żądania
-// if (process.env.NODE_ENV === 'production') {
-// 	app.get('*', (req, res) => {
-// 		res.sendFile(path.join(frontendDistPath, 'index.html'));
-// 	});
-// }
 
 // --- Centralny Error Handler ---
 const errorHandler = (err, req, res, next) => {

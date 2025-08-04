@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback, use
 import { useNotificationContext } from './NotificationContext';
 import getMainDeviceId from '@/utils/getMainDeviceId';
 import { transformGardenaData } from '@/utils/gardenaDataTransformer';
+import { apiClient } from '@/utils/apiClient';
 
 const AppContext = createContext();
 
@@ -29,13 +30,8 @@ export const AppProvider = ({ children }) => {
 		try {
 			setLoading(true);
 			setError(null);
-			const response = await fetch('/api/gardena/devices');
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || `HTTP Error: ${response.status}`);
-			}
-			const rawData = await response.json();
-
+			// Użycie apiClient zamiast fetch
+			const rawData = await apiClient('/api/gardena/devices');
 			const finalDevices = transformGardenaData(rawData);
 
 			setDevices(finalDevices);
@@ -51,9 +47,9 @@ export const AppProvider = ({ children }) => {
 	//Funkcje do zarządzania autoryzacją
 	const checkAuthStatus = useCallback(async () => {
 		try {
-			const response = await fetch('/api/check-auth');
-			if (response.ok) {
-				const data = await response.json();
+			// Użycie apiClient zamiast fetch
+			const data = await apiClient('/api/check-auth');
+			if (data.isAuthenticated) {
 				setIsAuthenticated(true);
 				setUser(data.username);
 			} else {
@@ -80,7 +76,8 @@ export const AppProvider = ({ children }) => {
 
 	const logout = async () => {
 		try {
-			await fetch('/api/logout', { method: 'POST' });
+			//Użycie apiClient zamiast fetch
+			await apiClient('/api/logout', { method: 'POST' });
 		} catch (err) {
 			console.error('Błąd podczas wylogowywania:', err);
 		} finally {
@@ -98,12 +95,18 @@ export const AppProvider = ({ children }) => {
 		if (isAuthenticated) {
 			// Dynamiczne tworzenie adresu URL dla WebSocket w zależności od środowiska
 			const isProduction = import.meta.env.PROD;
-			const wsProtocol = isProduction ? 'wss' : 'ws';
-			const backendHost = isProduction
-				? window.location.host.replace('client', 'server') // Działa dla nazw na Render.com
-				: 'localhost:3001'; // Dla środowiska deweloperskiego
+			const backendUrl = isProduction ? import.meta.env.VITE_BACKEND_URL : 'http://localhost:3001';
 
-			const socket = new WebSocket(`${wsProtocol}://${backendHost}`);
+			if (!backendUrl) {
+				console.error(
+					'Adres backendu (VITE_BACKEND_URL) nie jest zdefiniowany! Połączenie WebSocket nie zostanie nawiązane.'
+				);
+				return;
+			}
+
+			const socketUrl = new URL(backendUrl);
+			const wsProtocol = socketUrl.protocol === 'https:' ? 'wss' : 'ws';
+			const socket = new WebSocket(`${wsProtocol}://${socketUrl.host}`);
 
 			socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
 			socket.onclose = event => console.log('[WebSocket] Rozłączono.', event.code, event.reason);
