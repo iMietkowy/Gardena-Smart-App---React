@@ -1,4 +1,4 @@
-# Gardena Smart System - Centrum Dowodzenia
+# Gardena Smart App - Centrum Dowodzenia
 
 > Niestandardowa aplikacja webowa do zarządzania i monitorowania urządzeń z ekosystemu Gardena Smart System. Aplikacja oferuje interfejs czasu rzeczywistego, zaawansowane harmonogramy oraz integrację z danymi pogodowymi, stanowiąc kompletne centrum dowodzenia dla Twojego inteligentnego ogrodu.
 
