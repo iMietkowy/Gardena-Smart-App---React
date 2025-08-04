@@ -45,10 +45,10 @@ const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('ad
 const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
 
 // Middleware do serwowania plików statycznych TYLKO w trybie produkcyjnym
-if (process.env.NODE_ENV === 'production') {
-	app.use(express.static(frontendDistPath));
-	console.log(`[INFO] Serwowanie statycznych plików z: ${frontendDistPath}`);
-}
+// if (process.env.NODE_ENV === 'production') {
+// 	app.use(express.static(frontendDistPath));
+// 	console.log(`[INFO] Serwowanie statycznych plików z: ${frontendDistPath}`);
+// }
 
 // --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
@@ -414,11 +414,11 @@ app.delete('/api/schedules/:id', isAuthenticated, (req, res, next) =>
 
 // --- Ścieżka "catch-all" dla produkcji ---
 // Ta ścieżka musi być na końcu, aby przechwytywać wszystkie inne żądania
-if (process.env.NODE_ENV === 'production') {
-	app.get('*', (req, res) => {
-		res.sendFile(path.join(frontendDistPath, 'index.html'));
-	});
-}
+// if (process.env.NODE_ENV === 'production') {
+// 	app.get('*', (req, res) => {
+// 		res.sendFile(path.join(frontendDistPath, 'index.html'));
+// 	});
+// }
 
 // --- Centralny Error Handler ---
 const errorHandler = (err, req, res, next) => {
