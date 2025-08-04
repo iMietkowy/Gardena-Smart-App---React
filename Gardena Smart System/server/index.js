@@ -42,33 +42,13 @@ app.use(sessionParser);
 const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
 
 // --- Serwowanie statycznego frontendu z warunkiem autoryzacji ---
-const frontendDistPath = path.join(__dirname, '..', 'dist');
-const publicRoutes = ['/login', '/favicon.ico', '/assets/logo'];
-const isPublicFile = req => {
-	return (
-		publicRoutes.some(route => req.path.startsWith(route)) || req.path === '/' || req.path.startsWith('/assets/logo')
-	);
-};
+const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
 
-app.use((req, res, next) => {
-	const isApiRoute = req.path.startsWith('/api');
-	const isPublicFileRoute = isPublicFile(req);
-
-	// Jeśli jest to ścieżka API, przechodzimy dalej, ponieważ autoryzacja jest sprawdzana w poszczególnych endpointach
-	if (isApiRoute) {
-		return next();
-	}
-
-	// Jeśli użytkownik jest zalogowany LUB jest to publiczna ścieżka (np. /login)
-	if (req.session.userId || isPublicFileRoute) {
-		return next();
-	}
-
-	// W przeciwnym razie, przekierowujemy na stronę logowania
-	res.redirect('/login');
-}, express.static(frontendDistPath));
-
-console.log(`[INFO] Serwowanie plików frontendu z: ${frontendDistPath}`);
+// Middleware do serwowania plików statycznych TYLKO w trybie produkcyjnym
+if (process.env.NODE_ENV === 'production') {
+	app.use(express.static(frontendDistPath));
+	console.log(`[INFO] Serwowanie statycznych plików z: ${frontendDistPath}`);
+}
 
 // --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
@@ -248,7 +228,7 @@ app.post('/api/login', async (req, res, next) => {
 	}
 });
 
-app.post('/api/logout', (req, res) => {
+app.post('/api/logout', (req, res, next) => {
 	req.session.destroy(err => {
 		if (err) {
 			return next(err);
@@ -296,8 +276,6 @@ app.get('/api/weather', isAuthenticated, async (req, res, next) => {
 			return res.status(400).json({ error: 'Brak danych o lokalizacji.' });
 		}
 		if (!OPENWEATHERMAP_API_KEY) {
-			console.error('[Weather API] Brak Klucza API OPENWEATHERMAP w .env!');
-			// To jest błąd konfiguracji serwera, więc rzucamy błąd 500
 			throw new Error('Klucz API pogodowego nie jest skonfigurowany');
 		}
 		const weatherResponse = await axios.get(OPENWEATHERMAP_BASE_URL, {
@@ -349,7 +327,6 @@ app.get('/api/schedules/next/:deviceId', isAuthenticated, async (req, res, next)
 					nextInvocation = nextDate;
 				}
 			} catch (err) {
-				// Logujemy błąd parsowania, ale nie przerywamy działania aplikacji
 				console.error(`Błąd parsowania cron "${job.cron}" dla zadania ${job.id}:`, err);
 			}
 		});
@@ -435,10 +412,13 @@ app.delete('/api/schedules/:id', isAuthenticated, (req, res, next) =>
 	deleteSchedules(res, next, job => job.id !== req.params.id)
 );
 
-// --- Ścieżka "catch-all" ---
-app.get('*', (req, res) => {
-	res.sendFile(path.join(frontendDistPath, 'index.html'));
-});
+// --- Ścieżka "catch-all" dla produkcji ---
+// Ta ścieżka musi być na końcu, aby przechwytywać wszystkie inne żądania
+if (process.env.NODE_ENV === 'production') {
+	app.get('*', (req, res) => {
+		res.sendFile(path.join(frontendDistPath, 'index.html'));
+	});
+}
 
 // --- Centralny Error Handler ---
 const errorHandler = (err, req, res, next) => {
@@ -489,7 +469,7 @@ server.on('upgrade', function upgrade(request, socket, head) {
 	console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
 
 	sessionParser(request, {}, () => {
-		if (!request.session?.userId) {
+		if (!req.session?.userId) {
 			console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
 			socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
 			socket.destroy();
