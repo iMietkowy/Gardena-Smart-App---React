@@ -95,7 +95,7 @@ Główny plik `package.json` w katalogu nadrzędnym służy do zarządzania obom
 
 ## 📜 Dostępne Skrypty
 
-Wszystkie skrypty należy uruchamiać z **głównego folderu projektu**.
+Wszystkie skrypty należy uruchamiać z **głównego folderu projektu -> Gardena Smart System**.
 
 | Skrypt | Opis |
 | :--- | :--- |
