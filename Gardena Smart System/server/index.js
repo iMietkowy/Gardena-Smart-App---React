@@ -23,6 +23,7 @@ const DB_PATH = path.join(__dirname, 'db.json');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Middleware
