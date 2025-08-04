@@ -38,6 +38,10 @@ const sessionParser = session({
 });
 app.use(sessionParser);
 
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
+
 //Uproszczona "baza danych" użytkowników
 const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
 
