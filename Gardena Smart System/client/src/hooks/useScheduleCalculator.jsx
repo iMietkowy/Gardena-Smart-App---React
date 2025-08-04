@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { daysOfWeekUIOrder } from '../utils/constants';
+import { daysOfWeekUIOrder } from '@/utils/constants';
 
 const cronIndexToUIShortMap = daysOfWeekUIOrder.reduce((acc, day) => {
 	acc[day.cronIndex] = day.short;

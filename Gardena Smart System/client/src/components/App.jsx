@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import { useNotificationContext } from '../context/NotificationContext';
-import '../scss/main.scss';
+import { useAppContext } from '@/context/AppContext';
+import { useNotificationContext } from '@/context/NotificationContext';
+import '@/scss/main.scss';
 
 // Importy komponentów stron
 import HomePage from './pages/HomePage';
@@ -18,7 +18,7 @@ import Slider from 'react-slick';
 
 // Importy dla ikon
 import { Bell, Menu, Sun, Moon, LogOut } from 'lucide-react';
-import gardenaLogo from '../assets/img/logo.svg';
+import gardenaLogo from '@/assets/img/logo.svg';
 import { library } from '@fortawesome/fontawesome-svg-core';
 import { fas } from '@fortawesome/free-solid-svg-icons';
 import { fab } from '@fortawesome/free-brands-svg-icons';
@@ -26,9 +26,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 // Inne hooki i utility
 import ToastNotification from './common/ToastNotification';
-import { useClickOutside } from '../hooks/useClickOutside';
-import { getConsolidatedDeviceStatus } from '../utils/statusUtils';
-import { useWindowWidth } from '../hooks/useWindowWidth';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { getConsolidatedDeviceStatus } from '@/utils/statusUtils';
+import { useWindowWidth } from '@/hooks/useWindowWidth';
 
 library.add(fas, fab);
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import WeatherWidget from '../common/WeatherWidget';
+import WeatherWidget from '@/components/common/WeatherWidget';
 
 const HomePage = () => {
 	const navigate = useNavigate();

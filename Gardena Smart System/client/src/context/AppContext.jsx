@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useNotificationContext } from './NotificationContext';
-import getMainDeviceId from '../utils/getMainDeviceId';
-import { transformGardenaData } from '../utils/gardenaDataTransformer';
+import getMainDeviceId from '@/utils/getMainDeviceId';
+import { transformGardenaData } from '@/utils/gardenaDataTransformer';
 
 const AppContext = createContext();
 

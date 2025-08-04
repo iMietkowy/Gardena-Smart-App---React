@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useNotificationContext } from '../../context/NotificationContext';
+import { useNotificationContext } from '@/context/NotificationContext';
 
 
 const WeatherWidget = () => {

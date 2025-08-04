@@ -1,6 +1,6 @@
 import React from 'react';
-import { getStatusInfo, getMowerErrorInfo } from '../../utils/statusUtils';
-import BatteryStatus from '../common/BatteryStatus';
+import { getStatusInfo, getMowerErrorInfo } from '@/utils/statusUtils';
+import BatteryStatus from '@/components/common/BatteryStatus';
 
 const formatTimestamp = isoString => {
 	if (!isoString) return '';

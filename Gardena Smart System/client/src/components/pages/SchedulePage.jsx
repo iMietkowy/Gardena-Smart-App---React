@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useAppContext } from '../../context/AppContext';
-import { useNotificationContext } from '../../context/NotificationContext';
-import CustomSelect from '../common/CustomSelect';
-import ConfirmationModal from '../common/ConfirmationModal';
-import { useScheduleCalculator } from '../../hooks/useScheduleCalculator';
-import ScheduleForm from '../schedule/ScheduleForm';
-import ScheduleGrid from '../schedule/ScheduleGrid';
-import TaskDetailModal from '../schedule/TaskDetailModal'; 
-import * as scheduleApi from '../../utils/scheduleApi'; 
+import { useAppContext } from '@/context/AppContext';
+import { useNotificationContext } from '@/context/NotificationContext';
+import CustomSelect from '@/components/common/CustomSelect';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
+import { useScheduleCalculator } from '@/hooks/useScheduleCalculator';
+import ScheduleForm from '@/components/schedule/ScheduleForm';
+import ScheduleGrid from '@/components/schedule/ScheduleGrid';
+import TaskDetailModal from '@/components/schedule/TaskDetailModal'; 
+import * as scheduleApi from '@/utils/scheduleApi'; 
 
 const SchedulePage = () => {
     const { devices: allDevices } = useAppContext();

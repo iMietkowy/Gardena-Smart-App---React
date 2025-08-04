@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useControlForm } from '../../hooks/useControlForm';
-import { useDurationInput } from '../../hooks/useDurationInput';
-import DurationSelector from '../common/DurationSelector'; // Import nowego komponentu
+import { useControlForm } from '@/hooks/useControlForm';
+import { useDurationInput } from '@/hooks/useDurationInput';
+import DurationSelector from '@/components/common/DurationSelector'; // Import nowego komponentu
 
 const WateringControls = ({ device, onCommand }) => {
 	const maxDuration = 90; // W minutach

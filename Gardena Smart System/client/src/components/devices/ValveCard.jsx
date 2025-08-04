@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { getStatusInfo } from '../../utils/statusUtils';
+import { getStatusInfo } from '@/utils/statusUtils';
 
 const ValveCard = ({ valve }) => {
   const [showValveDetails, setShowValveDetails] = useState(false);

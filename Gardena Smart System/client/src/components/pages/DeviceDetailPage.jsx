@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAppContext } from '../../context/AppContext.jsx';
-import { useNotificationContext } from '../../context/NotificationContext.jsx';
-import MowerControls from '../devices/MowerControls';
-import WateringControls from '../devices/WateringControls';
-import PlugControls from '../devices/PlugControls';
-import ValveCard from '../devices/ValveCard';
-import DeviceStatusDisplay from '../devices/DeviceStatusDisplay.jsx';
-import mowerImage from '../../assets/img/mower.png';
-import wheelImage from '../../assets/img/wheel.png';
-import grassImage from '../../assets/img/grass.png';
-import ParkMowerModal from '../devices/ParkMowerModal.jsx';
+import { useAppContext } from '@/context/AppContext.jsx';
+import { useNotificationContext } from '@/context/NotificationContext.jsx';
+import MowerControls from '@/components/devices/MowerControls';
+import WateringControls from '@/components/devices/WateringControls';
+import PlugControls from '@/components/devices/PlugControls';
+import ValveCard from '@/components/devices/ValveCard';
+import DeviceStatusDisplay from '@/components/devices/DeviceStatusDisplay.jsx';
+import mowerImage from '@/assets/img/mower.png';
+import wheelImage from '@/assets/img/wheel.png';
+import grassImage from '@/assets/img/grass.png';
+import ParkMowerModal from '@/components/devices/ParkMowerModal.jsx';
 
 const DeviceDetailPage = () => {
 	const { devices, loading } = useAppContext();

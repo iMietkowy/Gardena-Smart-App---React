@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import DeviceStatusDisplay from './DeviceStatusDisplay';
-import mowerImage from '../../assets/img/Gardena_Mower_Sileno_Life.png';
-import wateringComputerImage from '../../assets/img/GARDENA_smart_Irrigation_Control.png';
-import smartPlugImage from '../../assets/img/Gardena_smart_plug.png';
-import defaultDeviceImage from '../../assets/img/logo.svg';
+import mowerImage from '@/assets/img/Gardena_Mower_Sileno_Life.png';
+import wateringComputerImage from '@/assets/img/GARDENA_smart_Irrigation_Control.png';
+import smartPlugImage from '@/assets/img/Gardena_smart_plug.png';
+import defaultDeviceImage from '@/assets/img/logo.svg';
 
 const DeviceCard = ({ device }) => {
 	const getDeviceImage = deviceType => {

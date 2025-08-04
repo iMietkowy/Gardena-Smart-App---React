@@ -1,7 +1,7 @@
 import React from 'react';
-import { useControlForm } from '../../hooks/useControlForm';
-import { useDurationInput } from '../../hooks/useDurationInput';
-import DurationSelector from '../common/DurationSelector';
+import { useControlForm } from '@/hooks/useControlForm';
+import { useDurationInput } from '@/hooks/useDurationInput';
+import DurationSelector from '@/components/common/DurationSelector';
 
 const MowerControls = ({ onCommand }) => {
 	const maxDuration = 6;

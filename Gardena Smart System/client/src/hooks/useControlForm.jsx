@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNotificationContext } from '../context/NotificationContext';
+import { useNotificationContext } from '@/context/NotificationContext';
 
 export const useControlForm = (onSendCommand) => {
     const { showToastNotification } = useNotificationContext();

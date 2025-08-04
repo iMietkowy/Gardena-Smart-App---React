@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useNotificationContext } from '../context/NotificationContext';
+import { useNotificationContext } from '@/context/NotificationContext';
 
 /**
  * Custom hook do zarządzania polem wejściowym czasu trwania.

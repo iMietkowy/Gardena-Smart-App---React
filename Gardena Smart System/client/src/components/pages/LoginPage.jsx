@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../../context/AppContext';
-import gardenaLogo from '../../assets/img/logo.svg';
+import { useAppContext } from '@/context/AppContext';
+import gardenaLogo from '@/assets/img/logo.svg';
 import { Sun, Moon } from 'lucide-react';
 
 const LoginPage = () => {

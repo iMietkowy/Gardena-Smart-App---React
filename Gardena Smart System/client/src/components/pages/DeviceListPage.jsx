@@ -1,6 +1,6 @@
 import React from 'react';
-import DeviceCard from '../devices/DeviceCard';
-import { useAppContext } from '../../context/AppContext';
+import DeviceCard from '@/components/devices/DeviceCard';
+import { useAppContext } from '@/context/AppContext';
 
 const DeviceList = () => {
     const { devices } = useAppContext();
