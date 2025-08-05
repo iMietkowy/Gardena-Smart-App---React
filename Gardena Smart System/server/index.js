@@ -27,7 +27,13 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(
+	cors({
+		origin: 'https://gardena-smart-app.onrender.com', // <-- Użyj tutaj finalnego adresu URL Twojej aplikacji
+		credentials: true,
+	})
+);
+
 app.use(express.json());
 
 //Konfiguracja sesji.
@@ -36,8 +42,8 @@ const sessionParser = session({
 	resave: false,
 	saveUninitialized: false,
 	cookie: {
-		secure: process.env.NODE_ENV === 'production',
-		sameSite: 'lax',
+		secure: true,
+		sameSite: 'none',
 	},
 });
 app.use(sessionParser);
