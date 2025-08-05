@@ -2,10 +2,16 @@
 # exit on error
 set -o errexit
 
-# Instaluje zależności dla obu projektów (client i server)
-npm install --workspaces
+# Instaluje zależności w głównym folderze (dla concurrently)
+npm install
 
-# Wchodzi do katalogu klienta i uruchamia budowanie
-echo "Building client..."
-cd client
-npm run build
+# Używamy flagi --prefix, aby jawnie zainstalować zależności w każdym folderze
+echo "==> Installing server dependencies..."
+npm install --prefix server
+
+echo "==> Installing client dependencies..."
+npm install --prefix client
+
+# Używamy flagi --prefix, aby jawnie uruchomić budowanie frontendu
+echo "==> Building client..."
+npm run build --prefix client
