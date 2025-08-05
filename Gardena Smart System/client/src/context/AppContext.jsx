@@ -160,7 +160,6 @@ export const AppProvider = ({ children }) => {
 					setTimeout(() => {
 						if (isAuthenticated) {
 							console.log('[WebSocket] Ponowna próba połączenia...');
-							// Wywołanie fetchDevices, aby wymusić aktualizację i ewentualne ponowne połączenie
 							fetchGardenaDevices();
 						}
 					}, 5000);
