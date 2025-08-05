@@ -2,13 +2,17 @@
 # exit on error
 set -o errexit
 
-# Instaluje zależności dla obu projektów (client i server)
-# na podstawie konfiguracji "workspaces" w głównym package.json
-echo "==> Installing all dependencies..."
-npm install --workspaces
+# Krok 1: Instalacja zależności dla serwera
+echo "==> Installing server dependencies..."
+cd server
+npm install
+cd .. # Wracamy do głównego folderu
 
-# Fizycznie wchodzi do katalogu klienta i dopiero stamtąd
-# uruchamia budowanie. To gwarantuje znalezienie komendy 'vite'.
-echo "==> Building client..."
+# Krok 2: Instalacja zależności dla klienta
+echo "==> Installing client dependencies..."
 cd client
+npm install
+
+# Krok 3: Budowanie klienta (jesteśmy już w folderze client)
+echo "==> Building client..."
 npm run build
