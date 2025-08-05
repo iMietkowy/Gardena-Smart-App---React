@@ -2,16 +2,13 @@
 # exit on error
 set -o errexit
 
-# Instaluje zależności w głównym folderze (dla concurrently)
-npm install
+# Instaluje zależności dla obu projektów (client i server)
+# na podstawie konfiguracji "workspaces" w głównym package.json
+echo "==> Installing all dependencies..."
+npm install --workspaces
 
-# Używamy flagi --prefix, aby jawnie zainstalować zależności w każdym folderze
-echo "==> Installing server dependencies..."
-npm install --prefix server
-
-echo "==> Installing client dependencies..."
-npm install --prefix client
-
-# Używamy flagi --prefix, aby jawnie uruchomić budowanie frontendu
+# Fizycznie wchodzi do katalogu klienta i dopiero stamtąd
+# uruchamia budowanie. To gwarantuje znalezienie komendy 'vite'.
 echo "==> Building client..."
-npm run build --prefix client
+cd client
+npm run build
