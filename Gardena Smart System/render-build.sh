@@ -8,4 +8,4 @@ npm install --workspaces
 # Wchodzi do katalogu klienta i uruchamia budowanie
 echo "Building client..."
 cd client
-npm run buildgit
+npm run build
