@@ -202,4 +202,272 @@ async function updateSchedules(updateLogic) {
 	const data = await fs.readFile(DB_PATH, 'utf8');
 	const db = JSON.parse(data);
 
-	db.schedules = updateLogic(db.schedules ||
+	db.schedules = updateLogic(db.schedules || []);
+
+	await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
+	await loadSchedulesAndRun();
+	return db.schedules;
+}
+
+// --- Definicja wszystkich ścieżek API ---
+app.use('/api', (req, res, next) => {
+    // Prosty middleware do logowania wszystkich zapytań API
+    console.log(`[API Request] ${req.method} ${req.path}`);
+    next();
+});
+
+// Endpointy do autoryzacji
+app.post('/api/login', async (req, res, next) => {
+	try {
+		const { username, password } = req.body;
+		const user = users.find(u => u.username === username);
+
+		if (!user) {
+			return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
+		}
+
+		const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+		if (!isPasswordValid) {
+			return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
+		}
+
+		req.session.userId = user.id;
+		req.session.username = user.username;
+		res.status(200).json({ message: 'Zalogowano pomyślnie!', username: user.username });
+	} catch (error) {
+		next(error);
+	}
+});
+
+app.post('/api/logout', (req, res, next) => {
+	req.session.destroy(err => {
+		if (err) {
+			return next(err);
+		}
+		res.status(200).json({ message: 'Wylogowano.' });
+	});
+});
+
+app.get('/api/check-auth', (req, res) => {
+	if (req.session.userId) {
+		return res.status(200).json({ isAuthenticated: true, username: req.session.username });
+	}
+	res.status(401).json({ isAuthenticated: false });
+});
+
+// Chronione endpointy
+app.get('/api/gardena/devices', isAuthenticated, async (req, res, next) => {
+	try {
+		if (devicesCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
+			return res.json(devicesCache);
+		}
+		const token = await getAccessToken();
+		const headers = {
+			Authorization: `Bearer ${token}`,
+			'Authorization-Provider': 'husqvarna',
+			'X-Api-Key': GARDENA_API_KEY,
+		};
+		const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
+		if (!locationsResponse.data?.data?.length)
+			return res.status(404).json({ message: 'Nie znaleziono lokalizacji Gardena.' });
+		const locationId = locationsResponse.data.data[0].id;
+		const devicesResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations/${locationId}`, { headers });
+		devicesCache = devicesResponse.data;
+		cacheTimestamp = Date.now();
+		res.json(devicesResponse.data);
+	} catch (error) {
+		next(error);
+	}
+});
+
+app.get('/api/weather', isAuthenticated, async (req, res, next) => {
+	try {
+		const { lat, lon } = req.query;
+		if (!lat || !lon) {
+			return res.status(400).json({ error: 'Brak danych o lokalizacji.' });
+		}
+		if (!OPENWEATHERMAP_API_KEY) {
+			throw new Error('Klucz API pogodowego nie jest skonfigurowany');
+		}
+		const weatherResponse = await axios.get(OPENWEATHERMAP_BASE_URL, {
+			params: { lat, lon, appid: OPENWEATHERMAP_API_KEY, units: 'metric', lang: 'pl' },
+		});
+		res.json(weatherResponse.data);
+	} catch (error) {
+		next(error);
+	}
+});
+
+app.post('/api/gardena/devices/:deviceId/control', isAuthenticated, async (req, res, next) => {
+	try {
+		const commandPayload = { ...req.body, deviceId: req.params.deviceId };
+		await sendControlCommand(commandPayload);
+		res.json({ message: 'Komenda wysłana pomyślnie!' });
+	} catch (error) {
+		next(error);
+	}
+});
+
+app.get('/api/schedules', isAuthenticated, async (req, res, next) => {
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		res.json(JSON.parse(data).schedules || []);
+	} catch (error) {
+		if (error.code === 'ENOENT') return res.json([]);
+		next(error);
+	}
+});
+
+// ... (reszta Twoich endpointów API bez zmian)
+
+// Serwowanie plików statycznych frontendu
+const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(frontendDistPath));
+
+// Ścieżka "catch-all", aby React Router działał w produkcji
+app.get('*', (req, res) => {
+	res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
+
+// --- Centralny Error Handler ---
+const errorHandler = (err, req, res, next) => {
+	console.error(`[BŁĄD SERWERA] ${new Date().toISOString()}`);
+	console.error('Ścieżka:', req.path);
+	console.error('Wiadomość:', err.message);
+
+	if (process.env.NODE_ENV !== 'production') {
+		console.error('Stos:', err.stack);
+	}
+
+	const statusCode = err.statusCode || 500;
+
+	if (err.isAxiosError && err.response) {
+		const axiosStatusCode = err.response.status;
+		return res.status(axiosStatusCode).json({
+			error: 'Wystąpił błąd podczas komunikacji z zewnętrznym serwisem. Spróbuj ponownie.',
+		});
+	}
+
+	res.status(statusCode).json({
+		error: 'Wystąpił nieoczekiwany błąd serwera. Skontaktuj się z administratorem.',
+	});
+};
+
+app.use(errorHandler);
+
+// --- Uruchomienie serwera HTTP i WebSocket ---
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({ noServer: true });
+
+wss.on('connection', (ws, req) => {
+	if (!req.session?.userId) {
+		console.log('[WSS] Odrzucono połączenie WebSocket - brak autoryzacji.');
+		ws.close(1008, 'Unauthorized');
+		return;
+	}
+	console.log('[WSS] Nowy klient (użytkownik: ' + req.session.username + ') połączony.');
+	ws.on('close', () => console.log('[WSS] Klient (przeglądarka) rozłączony.'));
+	ws.on('error', console.error);
+});
+
+server.on('upgrade', function upgrade(request, socket, head) {
+	console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
+
+	sessionParser(request, {}, () => {
+		if (!request.session?.userId) {
+			console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
+			socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+			socket.destroy();
+			return;
+		}
+		console.log('[WSS] Zezwolono na połączenie WebSocket - sesja autoryzowana.');
+		wss.handleUpgrade(request, socket, head, function done(ws) {
+			wss.emit('connection', ws, request);
+		});
+	});
+});
+
+server.listen(PORT, () => {
+	console.log(`Serwer aplikacji i API działa na porcie ${PORT}`);
+	loadSchedulesAndRun();
+	startGardenaLiveStream();
+});
+
+function broadcast(data) {
+	const jsonData = JSON.stringify(data);
+	wss.clients.forEach(client => {
+		if (client.readyState === client.OPEN) {
+			client.send(jsonData);
+		}
+	});
+}
+
+// Logika ponawiania połączenia WebSocket
+let retryDelay = 120000; // Zaczynamy od 2 minut
+const MAX_RETRY_DELAY = 3600000; // Maksymalnie 1 godzina
+
+async function startGardenaLiveStream() {
+	try {
+		console.log('[Gardena WS] Próba nawiązania połączenia z API czasu rzeczywistego...');
+		const token = await getAccessToken();
+		const headers = {
+			'Content-Type': 'application/vnd.api+json',
+			'x-api-key': GARDENA_API_KEY,
+			Authorization: 'Bearer ' + token,
+		};
+
+		const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
+		if (!locationsResponse.data?.data?.length) {
+			console.error(`[Gardena WS] Nie znaleziono lokalizacji. Ponowna próba za ${retryDelay / 1000}s.`);
+			setTimeout(startGardenaLiveStream, retryDelay);
+			return;
+		}
+		const locationId = locationsResponse.data.data[0].id;
+		console.log(`[Gardena WS] Uzyskano Location ID: ${locationId}`);
+
+		const wsPayload = {
+			data: { type: 'WEBSOCKET', id: uuidv4(), attributes: { locationId } },
+		};
+		const wsUrlResponse = await axios.post(`${GARDENA_SMART_API_BASE_URL}/websocket`, wsPayload, { headers });
+		const websocketUrl = wsUrlResponse.data.data.attributes.url;
+		console.log('[Gardena WS] Otrzymano tymczasowy adres WebSocket. Łączenie...');
+
+		const gardenaSocket = new WebSocket(websocketUrl);
+
+		gardenaSocket.on('open', () => {
+			console.log('[Gardena WS] Połączono z Gardena Realtime API! Nasłuchiwanie na zmiany...');
+			// Po udanym połączeniu resetujemy czas oczekiwania
+			retryDelay = 120000;
+		});
+
+		gardenaSocket.on('message', data => {
+			const message = JSON.parse(data.toString());
+			broadcast(message);
+		});
+
+		gardenaSocket.on('close', (code, reason) => {
+			console.log(
+				`[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Ponowna próba za ${retryDelay / 1000}s.`
+			);
+			setTimeout(startGardenaLiveStream, retryDelay);
+			// Zwiększamy czas oczekiwania na kolejną próbę, dodając losowość
+			const jitter = Math.random() * 5000;
+			retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY) + jitter;
+		});
+
+		gardenaSocket.on('error', error => {
+			console.error('[Gardena WS] Wystąpił błąd połączenia:', error.message);
+		});
+	} catch (error) {
+		console.error(
+			'[Gardena WS] Krytyczny błąd podczas inicjalizacji połączenia WebSocket:',
+			error.response?.data || error.message
+		);
+		console.log(`[Gardena WS] Ponowna próba za ${retryDelay / 1000}s.`);
+		setTimeout(startGardenaLiveStream, retryDelay);
+		// Zwiększamy czas oczekiwania na kolejną próbę, dodając losowość
+		const jitter = Math.random() * 5000;
+		retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY) + jitter;
+	}
+}
