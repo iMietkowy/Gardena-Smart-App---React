@@ -1,5 +1,9 @@
 
+const BASE_URL = 'https://gardena-smart-app-server.onrender.com';
+
 export const apiClient = async (url, options = {}) => {
+    const fullUrl = `${BASE_URL}${url}`;
+
     const finalOptions = {
         ...options,
         credentials: 'include',
@@ -9,7 +13,7 @@ export const apiClient = async (url, options = {}) => {
         },
     };
 
-    const response = await fetch(url, finalOptions);
+    const response = await fetch(fullUrl, finalOptions);
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
