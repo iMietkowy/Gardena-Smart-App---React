@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 // Zaktualizowana konfiguracja CORS dla produkcji
 app.use(cors({
-    origin: 'https://gardena-smart-app-client.onrender.com', // Tutaj wpisz dokładny URL Twojego frontendu
+    origin: 'https://gardena-smart-app-react-client.onrender.com', // Tutaj wpisz dokładny URL Twojego frontendu
     credentials: true,
 }));
 
