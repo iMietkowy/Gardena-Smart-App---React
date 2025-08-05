@@ -27,13 +27,27 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-// ================== OSTATECZNA POPRAWKA ==================
+
 // Adres URL w 'origin' musi idealnie pasować do adresu Twojego frontendu z błędu w konsoli
+const allowedOrigins = [
+   
+    'http://localhost:3000', // Dev
+    
+    // NOWY ADRES FRONTENDU Z REMDER.COM
+    'https://gardena-smart-app-re-se.onrender.com'
+];
+
 app.use(cors({
-    origin: 'https://gardena-smart-app.onrender.com', 
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }));
-// =======================================================
+
 app.use(express.json());
 
 //Konfiguracja sesji.
