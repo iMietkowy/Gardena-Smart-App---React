@@ -26,8 +26,12 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
+// --- Serwowanie statycznego frontendu ---
+const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(frontendDistPath));
+
 // Middleware
-// Zaktualizowana konfiguracja CORS dla produkcji i deweloperki
+// Konfiguracja CORS dla produkcji i deweloperki
 const allowedOrigins = [
     'http://localhost:3000', // Dev
     'https://gardena-smart-app-re-se.onrender.com' // Adres URL Twojego frontendu na render.com
@@ -46,20 +50,6 @@ app.use(cors({
 
 app.use(express.json());
 
-//Konfiguracja sesji.
-const sessionParser = session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        
-    },
-});
-app.use(sessionParser);
-
 app.get('/healthz', (req, res) => {
     res.status(200).send('OK');
 });
@@ -67,9 +57,7 @@ app.get('/healthz', (req, res) => {
 //Uproszczona "baza danych" użytkowników
 const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
 
-// --- Serwowanie statycznego frontendu ---
-const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(frontendDistPath));
+
 
 // --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
