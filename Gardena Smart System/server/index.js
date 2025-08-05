@@ -27,12 +27,7 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-// Zaktualizowana konfiguracja CORS dla produkcji
-app.use(cors({
-    origin: 'https://gardena-smart-app-react-client.onrender.com', // Tutaj wpisz dokładny URL Twojego frontendu
-    credentials: true,
-}));
-
+app.use(cors());
 app.use(express.json());
 
 //Konfiguracja sesji.
@@ -40,25 +35,19 @@ const sessionParser = session({
 	secret: process.env.SESSION_SECRET,
 	resave: false,
 	saveUninitialized: false,
-	cookie: { 
-        
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        
-    },
+	cookie: {
+		secure: process.env.NODE_ENV === 'production',
+		sameSite: 'lax',
+	},
 });
 app.use(sessionParser);
 
 app.get('/healthz', (req, res) => {
-    res.status(200).send('OK');
+	res.status(200).send('OK');
 });
 
 //Uproszczona "baza danych" użytkowników
 const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
-
-// --- Serwowanie statycznego frontendu z warunkiem autoryzacji ---
-const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
-
 
 // --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
@@ -422,6 +411,15 @@ app.delete('/api/schedules/:id', isAuthenticated, (req, res, next) =>
 	deleteSchedules(res, next, job => job.id !== req.params.id)
 );
 
+// Serwowanie plików statycznych frontendu
+const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(frontendDistPath));
+
+// Ścieżka "catch-all", aby React Router działał w produkcji
+// Musi być po wszystkich ścieżkach API, ale przed errorHandler
+app.get('*', (req, res) => {
+	res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 // --- Centralny Error Handler ---
 const errorHandler = (err, req, res, next) => {
@@ -429,14 +427,12 @@ const errorHandler = (err, req, res, next) => {
 	console.error('Ścieżka:', req.path);
 	console.error('Wiadomość:', err.message);
 
-	// Logujemy stos wywołań tylko w trybie deweloperskim
 	if (process.env.NODE_ENV !== 'production') {
 		console.error('Stos:', err.stack);
 	}
 
 	const statusCode = err.statusCode || 500;
 
-	// Specjalna obsługa błędów z Axios (np. API Gardena)
 	if (err.isAxiosError && err.response) {
 		const axiosStatusCode = err.response.status;
 		return res.status(axiosStatusCode).json({
@@ -444,7 +440,6 @@ const errorHandler = (err, req, res, next) => {
 		});
 	}
 
-	// Generyczna odpowiedź dla wszystkich innych błędów
 	res.status(statusCode).json({
 		error: 'Wystąpił nieoczekiwany błąd serwera. Skontaktuj się z administratorem.',
 	});
@@ -500,7 +495,10 @@ function broadcast(data) {
 	});
 }
 
-// --- Kompletna logika połączenia z Gardena Realtime API ---
+// Logika ponawiania połączenia WebSocket
+let retryDelay = 120000; // Zaczynamy od 2 minut
+const MAX_RETRY_DELAY = 3600000; // Maksymalnie 1 godzina
+
 async function startGardenaLiveStream() {
 	try {
 		console.log('[Gardena WS] Próba nawiązania połączenia z API czasu rzeczywistego...');
@@ -513,7 +511,8 @@ async function startGardenaLiveStream() {
 
 		const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
 		if (!locationsResponse.data?.data?.length) {
-			console.error('[Gardena WS] Nie znaleziono lokalizacji. Nie można uruchomić WebSocket.');
+			console.error(`[Gardena WS] Nie znaleziono lokalizacji. Ponowna próba za ${retryDelay / 1000}s.`);
+			setTimeout(startGardenaLiveStream, retryDelay);
 			return;
 		}
 		const locationId = locationsResponse.data.data[0].id;
@@ -530,35 +529,37 @@ async function startGardenaLiveStream() {
 
 		gardenaSocket.on('open', () => {
 			console.log('[Gardena WS] Połączono z Gardena Realtime API! Nasłuchiwanie na zmiany...');
-			setInterval(() => {
-				if (gardenaSocket.readyState === WebSocket.OPEN) {
-					gardenaSocket.ping();
-				}
-			}, 150000);
+			// Po udanym połączeniu resetujemy czas oczekiwania
+			retryDelay = 120000;
 		});
 
 		gardenaSocket.on('message', data => {
 			const message = JSON.parse(data.toString());
-			console.log('[Gardena WS] Otrzymano wiadomość:', message);
 			broadcast(message);
 		});
 
 		gardenaSocket.on('close', (code, reason) => {
 			console.log(
-				`[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Próba ponownego połączenia za 15 sekund...`
+				`[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Ponowna próba za ${retryDelay / 1000}s.`
 			);
-			setTimeout(startGardenaLiveStream, 15000);
+			setTimeout(startGardenaLiveStream, retryDelay);
+			// Zwiększamy czas oczekiwania na kolejną próbę, dodając losowość
+			const jitter = Math.random() * 5000;
+			retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY) + jitter;
 		});
 
 		gardenaSocket.on('error', error => {
-			console.error('[Gardena WS] Wystąpił błąd połączenia:', error);
+			console.error('[Gardena WS] Wystąpił błąd połączenia:', error.message);
 		});
 	} catch (error) {
 		console.error(
-			'[Gardena WS] Nie udało się zainicjować połączenia WebSocket:',
+			'[Gardena WS] Krytyczny błąd podczas inicjalizacji połączenia WebSocket:',
 			error.response?.data || error.message
 		);
-		console.log('[Gardena WS] Ponowna próba za 15 minut...');
-		setTimeout(startGardenaLiveStream, 900000);
+		console.log(`[Gardena WS] Ponowna próba za ${retryDelay / 1000}s.`);
+		setTimeout(startGardenaLiveStream, retryDelay);
+		// Zwiększamy czas oczekiwania na kolejną próbę, dodając losowość
+		const jitter = Math.random() * 5000;
+		retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY) + jitter;
 	}
 }
