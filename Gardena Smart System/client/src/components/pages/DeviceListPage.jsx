@@ -1,9 +1,14 @@
 import React from 'react';
 import DeviceCard from '@/components/devices/DeviceCard';
 import { useAppContext } from '@/context/AppContext';
+import Loader from '@/components/common/Loader';
 
 const DeviceList = () => {
-	const { devices } = useAppContext();
+	const { devices, loading } = useAppContext();
+
+	if (loading) {
+		return <Loader message='Pobieranie listy urządzeń...' />;
+	}
 
 	if (!devices || devices.length === 0) {
 		return (
