@@ -1,205 +1,200 @@
-import express from 'express';
-import axios from 'axios';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import { v4 as uuidv4 } from 'uuid';
-import schedule from 'node-schedule';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import cronParser from 'cron-parser';
-import WebSocket, { WebSocketServer } from 'ws';
-import session from 'express-session';
-import bcrypt from 'bcryptjs';
-import http from 'http';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
+import { useNotificationContext } from './NotificationContext';
+import getMainDeviceId from '@/utils/getMainDeviceId';
+import { transformGardenaData } from '@/utils/gardenaDataTransformer';
+import { apiClient } from '@/utils/apiClient';
 
-const { parseExpression } = cronParser;
+const AppContext = createContext();
 
-// --- Konfiguracja ścieżek ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DB_PATH = path.join(__dirname, 'db.json');
+export const AppProvider = ({ children }) => {
+	const [devices, setDevices] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+	const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+	const [isAuthenticated, setIsAuthenticated] = useState(null);
+	const [user, setUser] = useState(null);
 
-dotenv.config({ path: path.join(__dirname, '.env') });
+	const { addNotificationToBell, showToastNotification } = useNotificationContext();
 
-const app = express();
-app.set('trust proxy', 1);
-const PORT = process.env.PORT || 3001;
+	useEffect(() => {
+		document.documentElement.setAttribute('data-theme', theme);
+		localStorage.setItem('theme', theme);
+	}, [theme]);
 
-// Middleware
-// ================== OSTATECZNA POPRAWKA ==================
-// Adres URL w 'origin' musi idealnie pasować do adresu Twojego frontendu z błędu w konsoli
-app.use(cors({
-    origin: 'https://gardena-smart-app.onrender.com', 
-    credentials: true,
-}));
-// =======================================================
-app.use(express.json());
-
-//Konfiguracja sesji.
-const sessionParser = session({
-	secret: process.env.SESSION_SECRET,
-	resave: false,
-	saveUninitialized: false,
-	cookie: { 
-        secure: true, 
-        sameSite: 'none',
-    },
-});
-app.use(sessionParser);
-
-app.get('/healthz', (req, res) => {
-	res.status(200).send('OK');
-});
-
-//Uproszczona "baza danych" użytkowników
-const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
-
-// --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
-const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
-const GARDENA_CLIENT_SECRET = process.env.GARDENA_CLIENT_SECRET;
-const GARDENA_API_KEY = process.env.GARDENA_API_KEY;
-const GARDENA_AUTH_URL = 'https://api.authentication.husqvarnagroup.dev/v1/oauth2/token';
-const GARDENA_SMART_API_BASE_URL = 'https://api.smart.gardena.dev/v1';
-
-// --- Definicje zmiennych i funkcji pomocniczych API OPEN WEATHER MAP ---
-const OPENWEATHERMAP_API_KEY = process.env.OPENWEATHERMAP_API_KEY;
-const OPENWEATHERMAP_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
-
-let accessToken = null;
-let tokenExpiry = 0;
-let devicesCache = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION_MS = 5 * 1000;
-
-async function getAccessToken() {
-	if (accessToken && Date.now() < tokenExpiry) return accessToken;
-	try {
-		const authData = new URLSearchParams({
-			client_id: GARDENA_CLIENT_ID,
-			client_secret: GARDENA_CLIENT_SECRET,
-			grant_type: 'client_credentials',
-		});
-		const response = await axios.post(GARDENA_AUTH_URL, authData);
-		accessToken = response.data.access_token;
-		tokenExpiry = Date.now() + response.data.expires_in * 1000 - 60000;
-		console.log('[INFO] Token API Gardena pomyślnie uzyskany/odświeżony!');
-		return accessToken;
-	} catch (error) {
-		console.error('Błąd podczas uzyskania tokena API Gardena:', error.response?.data || error.message);
-		throw new Error('Nie można uzyskać tokena autoryzacji Gardena.');
-	}
-}
-
-async function sendControlCommand(commandPayload) {
-	const { deviceId, action, value, deviceType, valveServiceId } = commandPayload;
-	const token = await getAccessToken();
-	const serviceIdToUse = valveServiceId || deviceId;
-	const apiUrl = `${GARDENA_SMART_API_BASE_URL}/command/${serviceIdToUse}`;
-	let commandType = '',
-		commandData = {},
-		controlResourceType = '';
-
-	switch (action) {
-		case 'start':
-			commandType = 'START_SECONDS_TO_OVERRIDE';
-			commandData = { seconds: parseInt(value, 10) * 60 };
-			controlResourceType = 'MOWER_CONTROL';
-			break;
-		case 'parkUntilNextTask':
-			commandType = 'PARK_UNTIL_NEXT_TASK';
-			controlResourceType = 'MOWER_CONTROL';
-			break;
-		case 'parkUntilFurtherNotice':
-			commandType = 'PARK_UNTIL_FURTHER_NOTICE';
-			controlResourceType = 'MOWER_CONTROL';
-			break;
-		case 'startWatering':
-			commandType = 'START_SECONDS_TO_OVERRIDE';
-			commandData = { seconds: parseInt(value, 10) * 60 };
-			controlResourceType = 'VALVE_CONTROL';
-			break;
-		case 'stopWatering':
-			commandType = 'STOP_UNTIL_NEXT_TASK';
-			controlResourceType = 'VALVE_CONTROL';
-			break;
-		case 'turnOn':
-			commandType = 'START';
-			controlResourceType = 'POWER_SOCKET_CONTROL';
-			break;
-		case 'turnOff':
-			commandType = 'STOP';
-			controlResourceType = 'POWER_SOCKET_CONTROL';
-			break;
-		default:
-			throw new Error(`Nieznana akcja: ${action}`);
-	}
-
-	const payload = {
-		data: {
-			type: controlResourceType,
-			id: uuidv4(),
-			attributes: { command: commandType, ...commandData },
-		},
+	const toggleTheme = () => {
+		setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
 	};
 
-	try {
-		await axios.put(apiUrl, payload, {
-			headers: {
-				Authorization: `Bearer ${token}`,
-				'Authorization-Provider': 'husqvarna',
-				'X-Api-Key': GARDENA_API_KEY,
-				'Content-Type': 'application/vnd.api+json',
-			},
-		});
-		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
-	} catch (error) {
-		throw error;
-	}
-}
+	const fetchGardenaDevices = useCallback(async () => {
+		if (!isAuthenticated) return;
+		try {
+			setLoading(true);
+			setError(null);
+			// Użycie apiClient zamiast fetch
+			const rawData = await apiClient('/api/gardena/devices');
+			const finalDevices = transformGardenaData(rawData);
 
-//Middleware do sprawdzania uwierzytelnienia
-const isAuthenticated = (req, res, next) => {
-	if (req.session.userId) {
-		return next();
-	}
-
-	res.status(401).json({ message: 'Brak autoryzacji. Proszę się zalogować.' });
-};
-
-const scheduledJobs = new Map();
-async function loadSchedulesAndRun() {
-	try {
-		for (const job of scheduledJobs.values()) {
-			job.cancel();
+			setDevices(finalDevices);
+			console.log('[AppContext] Urządzenia załadowane:', finalDevices);
+		} catch (err) {
+			setError(`Failed to fetch devices: ${err.message}.`);
+			console.error('[AppContext] Błąd ładowania urządzeń:', err);
+		} finally {
+			setLoading(false);
 		}
-		scheduledJobs.clear();
+	}, [isAuthenticated]);
 
-		const data = await fs.readFile(DB_PATH, 'utf8');
-		const db = JSON.parse(data);
-		if (db && db.schedules) {
-			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
-			db.schedules.forEach(job => {
-				if (job.enabled) {
-					const scheduledJob = schedule.scheduleJob(job.cron, () => sendControlCommand(job));
-					scheduledJobs.set(job.id, scheduledJob);
+	//Funkcje do zarządzania autoryzacją
+	const checkAuthStatus = useCallback(async () => {
+		try {
+			// Użycie apiClient zamiast fetch
+			const data = await apiClient('/api/check-auth');
+			if (data.isAuthenticated) {
+				setIsAuthenticated(true);
+				setUser(data.username);
+			} else {
+				setIsAuthenticated(false);
+				setUser(null);
+			}
+		} catch (err) {
+			console.error('Błąd sprawdzania statusu autoryzacji:', err);
+			setIsAuthenticated(false);
+			setUser(null);
+		}
+	}, []);
+
+	useEffect(() => {
+		if (isAuthenticated) {
+			fetchGardenaDevices();
+		}
+	}, [isAuthenticated, fetchGardenaDevices]);
+
+	const login = username => {
+		setIsAuthenticated(true);
+		setUser(username);
+	};
+
+	const logout = async () => {
+		try {
+			//Użycie apiClient zamiast fetch
+			await apiClient('/api/logout', { method: 'POST' });
+		} catch (err) {
+			console.error('Błąd podczas wylogowywania:', err);
+		} finally {
+			setIsAuthenticated(false);
+			setUser(null);
+			setDevices([]);
+		}
+	};
+
+	useEffect(() => {
+		checkAuthStatus();
+	}, [checkAuthStatus]);
+
+	useEffect(() => {
+		if (isAuthenticated) {
+			// Łączymy się z tą samą domeną co frontend, na ścieżce /ws.
+			// Render zajmie się przekierowaniem tego do właściwego backendu.
+			// To sprawia, że przeglądarka traktuje połączenie jako "same-origin" i wysyła cookie sesji.
+			const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+			const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws`);
+
+			socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
+			socket.onclose = event => console.log('[WebSocket] Rozłączono.', event.code, event.reason);
+			socket.onerror = err => console.error('[WebSocket] Błąd:', err);
+
+			socket.onmessage = event => {
+				try {
+					const updatedService = JSON.parse(event.data);
+					console.log('[WebSocket Message Received Raw]', updatedService);
+
+					const mainDeviceIdToUpdate = getMainDeviceId(updatedService);
+
+					if (!mainDeviceIdToUpdate) {
+						console.warn(
+							'[AppContext] Nie mogę zidentyfikować ID głównego urządzenia dla aktualizacji:',
+							updatedService
+						);
+						return;
+					}
+
+					setDevices(prevDevices => {
+						return prevDevices.map(device => {
+							if (device.id === mainDeviceIdToUpdate) {
+								const newDevice = JSON.parse(JSON.stringify(device));
+
+								if (
+									['DEVICE', 'MOWER', 'POWER_SOCKET', 'SMART_IRRIGATION_CONTROL', 'COMMON', 'VALVE_SET'].includes(
+										updatedService.type
+									)
+								) {
+									Object.assign(newDevice.attributes, updatedService.attributes);
+								}
+
+								if (updatedService.type === 'VALVE' && newDevice.type === 'SMART_WATERING_COMPUTER') {
+									newDevice._valveServices = newDevice._valveServices.map(valve => {
+										if (valve.id === updatedService.id) {
+											return { ...valve, attributes: { ...valve.attributes, ...updatedService.attributes } };
+										}
+										return valve;
+									});
+								}
+								return newDevice;
+							}
+							return device;
+						});
+					});
+				} catch (e) {
+					console.error('[AppContext] Błąd przetwarzania wiadomości WebSocket:', e);
+					showToastNotification('Wystąpił błąd podczas aktualizacji danych urządzenia z serwera.', 'error');
+				}
+			};
+
+			return () => {
+				console.log('[WebSocket] Zamykam połączenie...');
+				socket.close();
+			};
+		}
+	}, [isAuthenticated, showToastNotification]);
+
+	const prevDevicesRef = useRef([]);
+
+	useEffect(() => {
+		if (isAuthenticated && prevDevicesRef.current.length > 0) {
+			devices.forEach(currentDevice => {
+				const prevDevice = prevDevicesRef.current.find(d => d.id === currentDevice.id);
+
+				if (prevDevice && currentDevice.type === 'MOWER') {
+					const wasMowing = ['mowing', 'ok_cutting'].includes(prevDevice.attributes?.activity?.value);
+					const isNowParkedOrCharging = ['parked', 'charging'].includes(currentDevice.attributes?.activity?.value);
+
+					if (wasMowing && isNowParkedOrCharging) {
+						addNotificationToBell(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
+						showToastNotification(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
+					}
 				}
 			});
-			console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
 		}
-	} catch (error) {
-		if (error.code === 'ENOENT') {
-			console.log('Plik db.json nie istnieje, tworzenie nowego.');
-			await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
-		} else {
-			throw new Error(`Nie można załadować harmonogramów z bazy danych: ${error.message}`);
-		}
-	}
-}
+		prevDevicesRef.current = devices;
+	}, [devices, isAuthenticated, addNotificationToBell, showToastNotification]);
 
-// Funkcja pomocnicza do aktualizacji harmonogramów
-async function updateSchedules(updateLogic) {
-	const data = await fs.readFile(DB_PATH, 'utf8');
-	const db = JSON.parse(data);
+	const value = {
+		devices,
+		loading,
+		error,
+		theme,
+		toggleTheme,
+		fetchGardenaDevices,
+		isAuthenticated,
+		user,
+		login,
+		logout,
+		checkAuthStatus,
+	};
 
-	db.schedules = updateLogic(db.schedules ||
+	return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+
+export const useAppContext = () => {
+	return useContext(AppContext);
+};
