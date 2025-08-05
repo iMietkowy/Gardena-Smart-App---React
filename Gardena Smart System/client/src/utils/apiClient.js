@@ -1,7 +1,10 @@
 
-const BASE_URL = 'https://gardena-smart-app-server.onrender.com';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 export const apiClient = async (url, options = {}) => {
+    // Dodana linia do diagnostyki
+    console.log('Adres URL, z którego pobierane są dane:', BASE_URL);
+
     const fullUrl = `${BASE_URL}${url}`;
 
     const finalOptions = {
