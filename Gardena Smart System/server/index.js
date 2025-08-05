@@ -23,17 +23,15 @@ const DB_PATH = path.join(__dirname, 'db.json');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); // Niezbędne do poprawnego działania 'secure cookies' za proxy na Render
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(
-	cors({
-		origin: 'https://gardena-smart-app.onrender.com', // <-- Użyj tutaj finalnego adresu URL Twojej aplikacji
-		credentials: true,
-	})
-);
-
+// Konfiguracja CORS dla pojedynczej domeny (chociaż 'lax' w cookie powinno wystarczyć, to jest bezpieczniejsze)
+app.use(cors({
+    origin: 'https://gardena-smart-app.onrender.com', // Użyj tutaj finalnego adresu URL Twojej aplikacji
+    credentials: true,
+}));
 app.use(express.json());
 
 //Konfiguracja sesji.
@@ -42,12 +40,14 @@ const sessionParser = session({
 	resave: false,
 	saveUninitialized: false,
 	cookie: {
-		secure: true,
-		sameSite: 'none',
+		secure: process.env.NODE_ENV === 'production',
+        // 'lax' jest wystarczające i bezpieczniejsze dla tej samej domeny, ale 'none' jest bardziej odporne na problemy z proxy
+		sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
 	},
 });
 app.use(sessionParser);
 
+// Endpoint dla Health Check na Render
 app.get('/healthz', (req, res) => {
 	res.status(200).send('OK');
 });
