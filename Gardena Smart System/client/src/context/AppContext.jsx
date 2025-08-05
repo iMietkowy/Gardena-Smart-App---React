@@ -93,20 +93,11 @@ export const AppProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (isAuthenticated) {
-			// Dynamiczne tworzenie adresu URL dla WebSocket w zależności od środowiska
-			const isProduction = import.meta.env.PROD;
-			const backendUrl = isProduction ? import.meta.env.VITE_BACKEND_URL : 'http://localhost:3001';
-
-			if (!backendUrl) {
-				console.error(
-					'Adres backendu (VITE_BACKEND_URL) nie jest zdefiniowany! Połączenie WebSocket nie zostanie nawiązane.'
-				);
-				return;
-			}
-
-			const socketUrl = new URL(backendUrl);
-			const wsProtocol = socketUrl.protocol === 'https:' ? 'wss' : 'ws';
-			const socket = new WebSocket(`${wsProtocol}://${socketUrl.host}`);
+			// Łączymy się z tą samą domeną co frontend, na ścieżce /ws.
+			// Render zajmie się przekierowaniem tego do właściwego backendu.
+			// To sprawia, że przeglądarka traktuje połączenie jako "same-origin" i wysyła cookie sesji.
+			const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+			const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws`);
 
 			socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
 			socket.onclose = event => console.log('[WebSocket] Rozłączono.', event.code, event.reason);
