@@ -2,17 +2,16 @@
 # exit on error
 set -o errexit
 
-# Krok 1: Instalacja zależności dla serwera
+# Krok 1: Instalacja zależności produkcyjnych dla serwera
 echo "==> Installing server dependencies..."
 cd server
-npm ci
-
+npm install
 cd .. # Wracamy do głównego folderu
 
-# Krok 2: Instalacja zależności dla klienta
+# Krok 2: Instalacja WSZYSTKICH zależności (w tym dev) dla klienta
 echo "==> Installing client dependencies..."
 cd client
-npm ci # Używamy npm ci, aby zainstalować WSZYSTKIE zależności, w tym vite
+npm install --production=false # Ta flaga zmusza npm do instalacji devDependencies
 
 # Krok 3: Budowanie klienta (jesteśmy już w folderze client)
 echo "==> Building client..."
