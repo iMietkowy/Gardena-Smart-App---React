@@ -3,24 +3,24 @@ import DeviceCard from '@/components/devices/DeviceCard';
 import { useAppContext } from '@/context/AppContext';
 
 const DeviceList = () => {
-    const { devices } = useAppContext();
+	const { devices } = useAppContext();
 
-    if (!devices || devices.length === 0) {
-        return (
-            <div className="empty-device-list-message">
-                <p>Brak urządzeń do wyświetlenia.</p>
-                <p>Upewnij się, że Twój serwer backendowy działa i jest połączony z Gardena Smart System.</p>
-            </div>
-        );
-    }
+	if (!devices || devices.length === 0) {
+		return (
+			<div className='empty-device-list-message'>
+				<p>Brak urządzeń do wyświetlenia.</p>
+				<p>Upewnij się, że Twój serwer backendowy działa i jest połączony z Gardena Smart System.</p>
+			</div>
+		);
+	}
 
-    return (
-        <div className="device-list">
-            {devices.map((device) => (
-                <DeviceCard key={device.id} device={device} />
-            ))}
-        </div>
-    );
+	return (
+		<div className='device-list'>
+			{devices.map(device => (
+				<DeviceCard key={device.id} device={device} />
+			))}
+		</div>
+	);
 };
 
 export default DeviceList;

@@ -18,4 +18,12 @@ export default defineConfig({
 			'@': path.resolve(__dirname, './src'),
 		},
 	},
+	build: {
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true, // Ta opcja usuwa console.log z kodu produkcyjnego
+			},
+		},
+	},
 });

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext.jsx';
 import { useNotificationContext } from '@/context/NotificationContext.jsx';
+import Loader from '@/components/common/Loader';
 import MowerControls from '@/components/devices/MowerControls';
 import WateringControls from '@/components/devices/WateringControls';
 import PlugControls from '@/components/devices/PlugControls';
@@ -71,13 +72,9 @@ const DeviceDetailPage = () => {
 	}, [device, sendCommand, isSubmitting]);
 
 	if (loading && !device) {
-		return (
-			<div className='loading-indicator'>
-				<div className='spinner'></div>
-				<p>Wczytywanie danych urządzenia...</p>
-			</div>
-		);
+		return <Loader />;
 	}
+
 	if (!device) {
 		return (
 			<div className='error-message'>

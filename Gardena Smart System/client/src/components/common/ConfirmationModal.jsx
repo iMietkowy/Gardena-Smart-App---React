@@ -1,5 +1,12 @@
 import React from 'react';
-const ConfirmationModal = ({ title, message, onConfirm, onCancel, confirmButtonText = 'OK', cancelButtonText = 'Anuluj' }) => {
+const ConfirmationModal = ({
+	title,
+	message,
+	onConfirm,
+	onCancel,
+	confirmButtonText = 'OK',
+	cancelButtonText = 'Anuluj',
+}) => {
 	return (
 		<div className='modal-overlay'>
 			<div className='modal-content'>

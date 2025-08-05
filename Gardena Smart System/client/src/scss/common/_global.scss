@@ -1,65 +1,67 @@
-
 @use './variables' as v;
 
 html {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
-*, *:before, *:after {
-  box-sizing: inherit;
+*,
+*:before,
+*:after {
+	box-sizing: inherit;
 }
 
 :root {
-  // Tryb jasny (domyślny)
-  --bg-primary: #{v.$bg-primary};
-  --bg-secondary: #{v.$bg-secondary};
-  --text-primary: #{v.$text-primary};
-  --text-secondary: #{v.$text-secondary};
-  --text-light: #{v.$text-light};
-  --border-primary: #{v.$border-primary};
-  --border-secondary: #{v.$border-secondary};
-  --logo-filter: none;
+	// Tryb jasny (domyślny)
+	--bg-primary: #{v.$bg-primary};
+	--bg-secondary: #{v.$bg-secondary};
+	--text-primary: #{v.$text-primary};
+	--text-secondary: #{v.$text-secondary};
+	--text-light: #{v.$text-light};
+	--border-primary: #{v.$border-primary};
+	--border-secondary: #{v.$border-secondary};
+	--logo-filter: none;
 }
 
 [data-theme='dark'] {
-  // Tryb ciemny
-  --bg-primary: #{v.$dark-bg-primary};
-  --bg-secondary: #{v.$dark-bg-secondary};
-  --text-primary: #{v.$dark-text-primary};
-  --text-secondary: #{v.$dark-text-secondary};
-  --text-light: #{v.$dark-text-light};
-  --border-primary: #{v.$dark-border-primary};
-  --border-secondary: #{v.$dark-border-secondary};
-  --logo-filter: invert(1) hue-rotate(180deg);
+	// Tryb ciemny
+	--bg-primary: #{v.$dark-bg-primary};
+	--bg-secondary: #{v.$dark-bg-secondary};
+	--text-primary: #{v.$dark-text-primary};
+	--text-secondary: #{v.$dark-text-secondary};
+	--text-light: #{v.$dark-text-light};
+	--border-primary: #{v.$dark-border-primary};
+	--border-secondary: #{v.$dark-border-secondary};
+	--logo-filter: invert(1) hue-rotate(180deg);
 
+	.btn--secondary {
+		background-color: v.$gray-600;
+		border-color: v.$gray-600;
+		color: v.$dark-text-primary;
 
-  .status-ok {
-    color: v.$primary-green;
-    font-weight: 600;
+		&:hover:not(:disabled) {
+			background-color: v.$gray-500;
+			border-color: v.$gray-500;
+		}
+	}
+}
+
+.status-ok {
+	color: v.$primary-green;
+	font-weight: 600;
 }
 .status-warn {
-    color: v.$status-paused;
-    font-weight: 600;
+	color: v.$status-paused;
+	font-weight: 600;
 }
 .status-error {
-    color: v.$status-offline;
-    font-weight: 600;
+	color: v.$status-offline;
+	font-weight: 600;
 }
 
-  
-  .btn--secondary {
-    background-color: v.$gray-600; 
-    border-color: v.$gray-600;    
-    color: v.$dark-text-primary;  
-
-    &:hover:not(:disabled) {
-        background-color: v.$gray-500;
-        border-color: v.$gray-500;
-    }
-  }
-}
-
-
-html, body, #app, #root, .app-container {
+html,
+body,
+#app,
+#root,
+.app-container {
 	height: 100%;
 	margin: 0;
 	padding: 0;
@@ -70,7 +72,9 @@ body {
 	background-color: var(--bg-primary);
 	color: var(--text-secondary);
 	overflow-x: hidden;
-    transition: background-color 0.3s ease, color 0.3s ease;
+	transition:
+		background-color 0.3s ease,
+		color 0.3s ease;
 }
 
 .app-container {
@@ -79,17 +83,18 @@ body {
 	min-height: 100vh;
 }
 
-
 .app-header {
 	flex-shrink: 0;
-    background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-secondary);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+	background-color: var(--bg-secondary);
+	border-bottom: 1px solid var(--border-secondary);
+	transition:
+		background-color 0.3s ease,
+		border-color 0.3s ease;
 }
 
 .app-footer {
-    flex-shrink: 0;
-    background-color: v.$dark-bg-secondary; 
+	flex-shrink: 0;
+	background-color: v.$dark-bg-secondary;
 }
 
 .app-main {
@@ -100,34 +105,44 @@ body {
 	justify-content: center;
 	align-items: flex-start;
 
-    @media (max-width: 767px) {
-        padding: 1rem;
-    }
+	@media (max-width: 767px) {
+		padding: 1rem;
+	}
 }
 
-
-.device-card, .device-detail-page, .schedule-form-container, .schedule-list-container, .home-page {
-    background-color: var(--bg-secondary);
-    border-color: var(--border-primary);
-    h2, h3, h4, .device-name, .status-label {
-        color: var(--text-primary);
-    }
-    p, .status-text, li {
-        color: var(--text-secondary);
-    }
+.device-card,
+.device-detail-page,
+.schedule-form-container,
+.schedule-list-container,
+.home-page {
+	background-color: var(--bg-secondary);
+	border-color: var(--border-primary);
+	h2,
+	h3,
+	h4,
+	.device-name,
+	.status-label {
+		color: var(--text-primary);
+	}
+	p,
+	.status-text,
+	li {
+		color: var(--text-secondary);
+	}
 }
 
-.custom-select-button, .custom-select-options {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    border-color: var(--border-primary);
+.custom-select-button,
+.custom-select-options {
+	background-color: var(--bg-secondary);
+	color: var(--text-primary);
+	border-color: var(--border-primary);
 }
 
 .custom-select-option:hover {
-    background-color: v.$primary-orange;
-    color: v.$white;
+	background-color: v.$primary-orange;
+	color: v.$white;
 }
 
 .app-title img {
-    filter: var(--logo-filter);
+	filter: var(--logo-filter);
 }

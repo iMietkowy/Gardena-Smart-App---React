@@ -14,15 +14,14 @@ const BatteryStatus = ({ level }) => {
 		batteryColorClass = 'battery-green';
 	}
 
-		return (
+	return (
 		<div className='battery-status-bar'>
-            <div className="battery-progress-wrapper">
-                <div className='battery-progress-container'>
-                    <div className={`battery-progress-fill ${batteryColorClass}`} style={{ width: `${level}%` }}>
-                    </div>
-                </div>
-                <span className="battery-text">{level}%</span> 
-            </div>
+			<div className='battery-progress-wrapper'>
+				<div className='battery-progress-container'>
+					<div className={`battery-progress-fill ${batteryColorClass}`} style={{ width: `${level}%` }}></div>
+				</div>
+				<span className='battery-text'>{level}%</span>
+			</div>
 		</div>
 	);
 };

@@ -1,16 +1,17 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
 import { useNotificationContext } from '@/context/NotificationContext';
 import '@/scss/main.scss';
+import Loader from './common/Loader';
 
-// Importy komponentów stron
-import HomePage from './pages/HomePage';
-import DeviceList from './pages/DeviceListPage';
-import DeviceDetailPage from './pages/DeviceDetailPage';
-import SchedulePage from './pages/SchedulePage';
-import NotFoundPage from './pages/NotFoundPage';
-import LoginPage from './pages/LoginPage';
+// Dynamiczny import komponentów stron (lazy-loading)
+const HomePage = lazy(() => import('./pages/HomePage'));
+const DeviceList = lazy(() => import('./pages/DeviceListPage'));
+const DeviceDetailPage = lazy(() => import('./pages/DeviceDetailPage'));
+const SchedulePage = lazy(() => import('./pages/SchedulePage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
 
 // Importy dla karuzeli statusów w nagłówku
 import Slider from 'react-slick';
@@ -119,10 +120,7 @@ const App = () => {
 	if (isAuthenticated === null) {
 		return (
 			<div className='app-container'>
-				<div className='loading-indicator'>
-					<div className='spinner'></div>
-					<p>Sprawdzanie autoryzacji...</p>
-				</div>
+				<Loader />
 			</div>
 		);
 	}
@@ -130,9 +128,12 @@ const App = () => {
 	if (isAuthenticated === false) {
 		return (
 			<div className='app-container'>
-				<Routes>
-					<Route path='*' element={<LoginPage />} />
-				</Routes>
+				{/* Dodano Suspense dla strony logowania */}
+				<Suspense fallback={<Loader />}>
+					<Routes>
+						<Route path='*' element={<LoginPage />} />
+					</Routes>
+				</Suspense>
 			</div>
 		);
 	}
@@ -335,13 +336,16 @@ const App = () => {
 			)}
 
 			<main className='app-main'>
-				<Routes>
-					<Route path='/' element={<HomePage />} />
-					<Route path='/devices' element={<DevicesPage />} />
-					<Route path='/devices/:deviceId' element={<DeviceDetailPage />} />
-					<Route path='/schedules' element={<SchedulePage />} />
-					<Route path='*' element={<NotFoundPage />} />
-				</Routes>
+				{/* Dodano Suspense, aby owinąć wszystkie trasy */}
+				<Suspense fallback={<Loader />}>
+					<Routes>
+						<Route path='/' element={<HomePage />} />
+						<Route path='/devices' element={<DevicesPage />} />
+						<Route path='/devices/:deviceId' element={<DeviceDetailPage />} />
+						<Route path='/schedules' element={<SchedulePage />} />
+						<Route path='*' element={<NotFoundPage />} />
+					</Routes>
+				</Suspense>
 			</main>
 			<div className='toast-notification-container'>
 				{toastNotifications.map(toast => (
