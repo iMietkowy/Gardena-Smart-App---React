@@ -178,6 +178,30 @@ async function sendControlCommand(commandPayload) {
 			},
 		});
 		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
+
+		// --- NOWA LOGIKA: Planowanie zatrzymania podlewania ---
+		// Ta logika będzie wywoływana tylko z loadSchedulesAndRun, gdy startujemy harmonogram
+		if (action === 'startWatering' && value > 0) {
+			const wateringDurationMs = parseInt(value, 10) * 60 * 1000;
+			const stopTime = new Date(Date.now() + wateringDurationMs);
+			
+			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
+			
+			const stopJob = {
+				deviceId,
+				valveServiceId,
+				action: 'stopWatering',
+				value: 0,
+				enabled: true
+			};
+			
+			schedule.scheduleJob(stopTime, { tz: 'UTC' }, () => {
+				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
+				sendControlCommand(stopJob);
+			});
+		}
+		// --- KONIEC NOWEJ LOGIKI ---
+		
 	} catch (error) {
 		throw error;
 	}
@@ -206,19 +230,10 @@ async function loadSchedulesAndRun() {
 			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
 			db.schedules.forEach(job => {
 				if (job.enabled) {
+					// Planowanie zadania z pliku db.json
 					const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, () => {
-						// Gdy zadanie jest wykonywane z harmonogramu, sprawdzamy akcję.
-						// Jeśli akcją jest startWatering, planujemy zatrzymanie,
-						// ale nie usuwamy ani nie wyłączamy samego harmonogramu.
+						// Wywołanie sendControlCommand z całym obiektem zadania
 						sendControlCommand(job);
-
-						// Dodatkowa logika do zaplanowania stopWatering
-						if (job.action === 'startWatering' && job.value > 0) {
-							const stopJob = { ...job, action: 'stopWatering' };
-							const stopTime = new Date(Date.now() + job.value * 60 * 1000);
-							schedule.scheduleJob(stopTime, { tz: 'UTC' }, () => sendControlCommand(stopJob));
-							console.log(`[Schedule] Zaplanowano zatrzymanie na ${stopTime.toUTCString()}`);
-						}
 					});
 					scheduledJobs.set(job.id, scheduledJob);
 				}
