@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import { daysOfWeekUIOrder } from '@/utils/constants';
+import { useWindowWidth } from '@/hooks/useWindowWidth'; // Importuj hook do sprawdzania szerokości okna
 
 const ScheduleGrid = ({ tasks, onTaskClick }) => {
 	const hourOptions = Array.from({ length: 24 }, (_, i) => ({
@@ -13,28 +14,36 @@ const ScheduleGrid = ({ tasks, onTaskClick }) => {
 	const [tooltipContent, setTooltipContent] = useState('');
 	const [tooltipCoords, setTooltipCoords] = useState({ x: 0, y: 0 });
 
+	const windowWidth = useWindowWidth(); // Użyj hooka do pobrania szerokości okna
+	const isMobile = windowWidth <= 767; // Definiuj, kiedy uznajemy za widok mobilny (np. do 767px)
+
 	// Funkcja obsługująca najechanie myszką na zadanie
 	const handleMouseEnter = (event, task) => {
+		// Nie pokazuj tooltipa na urządzeniach mobilnych
+		if (isMobile) {
+			return;
+		}
+
 		// Określ klasę statusu
 		const statusClass = task.enabled ? 'status-ok' : 'status-warn';
 		const statusText = task.enabled ? 'Włączony' : 'Wyłączony';
 
 		// Tworzenie tekstu tooltipa z tagami HTML dla stylizacji
-		const tooltipText =
+		const tooltipText = 
 			`<strong>Urządzenie:</strong> ${task.deviceName}\n` +
 			`<strong>Akcja:</strong> ${task.action.includes('Watering') ? 'Podlewanie' : 'Koszenie'}\n` +
 			`<strong>Czas:</strong> ${task.displayStartTime} - ${task.displayEndTime}\n` +
 			`<strong>W dni:</strong> ${task.dayUIShorts.join(', ')}\n` +
-			`<strong>Status:</strong> <span class="${statusClass}">${statusText}</span>`;
-
+			`<strong>Status:</strong> <span class="${statusClass}">${statusText}</span>`; 
+		
 		setHoveredTask(task);
 		setTooltipContent(tooltipText);
-
+		
 		// Oblicz pozycję tooltipa względem elementu, który wywołał zdarzenie
 		const targetRect = event.currentTarget.getBoundingClientRect();
 		setTooltipCoords({
 			// Pozycjonowanie po prawej stronie elementu + niewielki margines
-			x: targetRect.right + 10,
+			x: targetRect.right + 10, 
 			// Wyrównanie do góry elementu
 			y: targetRect.top,
 		});
@@ -88,8 +97,8 @@ const ScheduleGrid = ({ tasks, onTaskClick }) => {
 									zIndex: 10 + task.lane,
 								}}
 								onClick={() => onTaskClick(task)}
-								onMouseEnter={event => handleMouseEnter(event, task)}
-								onMouseLeave={handleMouseLeave}
+								onMouseEnter={(event) => handleMouseEnter(event, task)} 
+								onMouseLeave={handleMouseLeave} 
 							>
 								<div className='task-header'>
 									<span className='task-times'>
@@ -104,18 +113,17 @@ const ScheduleGrid = ({ tasks, onTaskClick }) => {
 				</div>
 			))}
 
-			{/* Niestandardowy komponent tooltipa */}
-			{hoveredTask && (
+			{/* Niestandardowy komponent tooltipa będzie renderowany tylko, jeśli nie jest to widok mobilny */}
+			{hoveredTask && !isMobile && (
 				<div
 					className='custom-tooltip'
 					style={{
-						left: tooltipCoords.x,
+						left: tooltipCoords.x, 
 						top: tooltipCoords.y,
 					}}
 				>
 					<div className='custom-tooltip-content'>
 						{tooltipContent.split('\n').map((line, index) => (
-							// angerouslySetInnerHTML, aby renderować tagi HTML (np. <strong>, <span>)
 							<p key={index} dangerouslySetInnerHTML={{ __html: line }}></p>
 						))}
 					</div>
