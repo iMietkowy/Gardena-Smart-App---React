@@ -178,33 +178,6 @@ async function sendControlCommand(commandPayload) {
 			},
 		});
 		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
-
-		// --- Planowanie zatrzymania podlewania ---
-		if (action === 'startWatering' && value > 0) {
-			const wateringDurationMs = parseInt(value, 10) * 60 * 1000;
-			const stopTime = new Date(Date.now() + wateringDurationMs);
-			
-			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
-			
-			const job = {
-				deviceId,
-				valveServiceId,
-				action: 'stopWatering',
-				value: 0,
-				enabled: true
-			};
-			
-			schedule.scheduleJob(stopTime, async () => {
-				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
-				try {
-					await sendControlCommand(job);
-					console.log(`[Schedule] Zatrzymanie podlewania dla zaworu ${valveServiceId} wykonane pomyślnie.`);
-				} catch (stopError) {
-					console.error(`[Schedule] Błąd podczas zatrzymywania podlewania dla zaworu ${valveServiceId}:`, stopError.message);
-				}
-			});
-		}
-		
 	} catch (error) {
 		throw error;
 	}
