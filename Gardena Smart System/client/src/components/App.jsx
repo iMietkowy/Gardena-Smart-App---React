@@ -120,7 +120,7 @@ const App = () => {
 	if (isAuthenticated === null) {
 		return (
 			<div className='app-container'>
-				<Loader />
+				<Loader message='Sprawdzanie statusu sesji...' />
 			</div>
 		);
 	}
@@ -129,7 +129,7 @@ const App = () => {
 		return (
 			<div className='app-container'>
 				{/* Dodano Suspense dla strony logowania */}
-				<Suspense fallback={<Loader />}>
+				<Suspense fallback={<Loader message='Ładowanie strony logowania...' />}>
 					<Routes>
 						<Route path='*' element={<LoginPage />} />
 					</Routes>
@@ -337,7 +337,7 @@ const App = () => {
 
 			<main className='app-main'>
 				{/* Dodano Suspense, aby owinąć wszystkie trasy */}
-				<Suspense fallback={<Loader />}>
+				<Suspense fallback={<Loader message='Ładowanie strony...' />}>
 					<Routes>
 						<Route path='/' element={<HomePage />} />
 						<Route path='/devices' element={<DevicesPage />} />

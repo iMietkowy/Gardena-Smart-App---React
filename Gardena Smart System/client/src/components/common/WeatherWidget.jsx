@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNotificationContext } from '@/context/NotificationContext';
+import Loader from '@/components/common/Loader';
 
 const WeatherWidget = () => {
 	const [weatherData, setWeatherData] = useState(null);
@@ -92,9 +93,8 @@ const WeatherWidget = () => {
 
 	if (!weatherData) {
 		return (
-			<div className='weather-widget loading-indicator'>
-				<div className='spinner'></div>
-				<p>Ładowanie pogody...</p>
+			<div className='weather-widget'>
+				<Loader message='Ładowanie pogody...' />
 			</div>
 		);
 	}

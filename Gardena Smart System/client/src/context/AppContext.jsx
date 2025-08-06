@@ -89,17 +89,25 @@ export const AppProvider = ({ children }) => {
 		checkAuthStatus();
 	}, [checkAuthStatus]);
 
-	// ZAKTUALIZOWANA LOGIKA WEBSOCKET Z POPRAWIONĄ OBSŁUGĄ CYKLU ŻYCIA
+	// --- LOGIKA WEBSOCKET Z OBSŁUGĄ CYKLU ŻYCIA ---
 	useEffect(() => {
 		if (isAuthenticated === true) {
 			const backendUrl = import.meta.env.VITE_BACKEND_URL;
-			const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
-			const wsUrl = `${wsProtocol}://${new URL(backendUrl).host}/ws`;
+			
+			let wsUrl;
+			if (backendUrl) {
+				const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+				wsUrl = `${wsProtocol}://${new URL(backendUrl).host}/ws`;
+			} else {
+				// Logika dla środowiska produkcyjnego (Render.com)
+				const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+				wsUrl = `${wsProtocol}://${window.location.host}/ws`;
+			}
 
 			console.log('[AppContext] Uwierzytelniono. Próba połączenia z WebSocket pod adresem:', wsUrl);
 			
 			const socket = new WebSocket(wsUrl);
-			wsRef.current = socket; // Zapisz instancję do ref
+			wsRef.current = socket; 
 
 			socket.onopen = () => console.log('[WebSocket] Połączono z serwerem.');
 			
@@ -119,7 +127,7 @@ export const AppProvider = ({ children }) => {
 					}
 
 					setDevices(prevDevices => {
-                        const nextDevices = prevDevices.map(device => {
+						const nextDevices = prevDevices.map(device => {
 							if (device.id === mainDeviceIdToUpdate) {
 								const newDevice = { ...device };
 								
@@ -145,8 +153,7 @@ export const AppProvider = ({ children }) => {
 							}
 							return device;
 						});
-                        // Upewnij się, że referencja do tablicy się zmieni, aby wywołać rerender
-                        return nextDevices;
+						return nextDevices;
 					});
 				} catch (e) {
 					console.error('[AppContext] Błąd przetwarzania wiadomości WebSocket:', e);
@@ -167,7 +174,6 @@ export const AppProvider = ({ children }) => {
 			};
 			socket.onerror = err => console.error('[WebSocket] Błąd:', err);
 
-			// Funkcja czyszcząca dla useEffect. Zamyka połączenie, gdy komponent jest odmontowywany.
 			return () => {
 				if (socket.readyState === WebSocket.OPEN) {
 					isClosingRef.current = true;
@@ -219,3 +225,5 @@ export const AppProvider = ({ children }) => {
 export const useAppContext = () => {
 	return useContext(AppContext);
 };
+
+//test

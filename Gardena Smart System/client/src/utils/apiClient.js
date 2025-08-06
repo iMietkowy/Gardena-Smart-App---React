@@ -1,26 +1,25 @@
-
-const BASE_URL = import.meta.env.VITE_BACKEND_URL;
+// Zmienna jest ładowana z plików .env, w środowisku produkcyjnym będzie undefined.
+const VITE_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export const apiClient = async (url, options = {}) => {
-    // Dodana linia do diagnostyki
-    console.log('Adres URL, z którego pobierane są dane:', BASE_URL);
+	// W środowisku produkcyjnym URL będzie względny (np. '/api/login').
+	// W środowisku deweloperskim będzie to pełny adres (np. 'http://localhost:3001/api/login').
+	const fullUrl = VITE_BACKEND_URL ? `${VITE_BACKEND_URL}${url}` : url;
 
-    const fullUrl = `${BASE_URL}${url}`;
+	const finalOptions = {
+		...options,
+		credentials: 'include',
+		headers: {
+			'Content-Type': 'application/json',
+			...options.headers,
+		},
+	};
 
-    const finalOptions = {
-        ...options,
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-    };
+	const response = await fetch(fullUrl, finalOptions);
 
-    const response = await fetch(fullUrl, finalOptions);
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Błąd serwera: ${response.status}`);
-    }
-    return response.json().catch(() => ({}));
+	if (!response.ok) {
+		const errorData = await response.json().catch(() => ({}));
+		throw new Error(errorData.error || errorData.message || `Błąd serwera: ${response.status}`);
+	}
+	return response.json().catch(() => ({}));
 };

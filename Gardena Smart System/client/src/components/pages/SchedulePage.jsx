@@ -139,7 +139,7 @@ const SchedulePage = () => {
 				<ScheduleForm devices={allDevices} onAddSchedule={handleAddSchedule} />
 				<div className='schedule-list-container'>
 					<h3>Aktywne zadania</h3>
-					{loading && <Loader />}
+					{loading && <Loader message='Ładowanie harmonogramów...' />}
 					{error && (
 						<div style={{ padding: '2rem 0', textAlign: 'center' }}>
 							<p className='error-title' style={{ fontWeight: 700, color: '#ef4444' }}>

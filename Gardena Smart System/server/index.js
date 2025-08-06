@@ -26,21 +26,22 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
+// --- Serwowanie statycznego frontendu ---
+const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(frontendDistPath));
+
 // Middleware
 // Konfiguracja CORS dla produkcji i deweloperki
 const allowedOrigins = [
-	'http://localhost:3000', // Adres URL frontendu w trybie deweloperskim
-];
+	'http://localhost:3000', // Dev jeśli zmienisz konfigurację protu w Vite wprowadz zmiany
 
-// Jeśli to środowisko produkcyjne, dodaj adres Render.com do dozwolonych
-if (process.env.NODE_ENV === 'production' && process.env.RENDER_EXTERNAL_URL) {
-	allowedOrigins.push(process.env.RENDER_EXTERNAL_URL);
-}
+	// --- Dodaj tutaj nowy, główny adres URL Twojego serwisu Render.com ---
+	'https://gardena-smart-app.onrender.com',
+];
 
 app.use(
 	cors({
 		origin: (origin, callback) => {
-			// Zezwól na żądania bez nagłówka Origin (np. z Postmana)
 			if (!origin || allowedOrigins.includes(origin)) {
 				callback(null, true);
 			} else {
@@ -50,6 +51,7 @@ app.use(
 		credentials: true,
 	})
 );
+
 app.use(express.json());
 
 //Konfiguracja sesji.
@@ -70,10 +72,6 @@ app.get('/healthz', (req, res) => {
 
 //Uproszczona "baza danych" użytkowników
 const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
-
-// --- Serwowanie statycznego frontendu ---
-const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(frontendDistPath));
 
 // --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;

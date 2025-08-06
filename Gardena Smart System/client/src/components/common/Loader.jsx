@@ -1,9 +1,9 @@
 import React from 'react';
 
-const Loader = () => (
+const Loader = ({ message = 'Ładowanie strony...' }) => (
 	<div className='loading-indicator'>
 		<div className='spinner'></div>
-		<p>Ładowanie strony...</p>
+		<p>{message}</p>
 	</div>
 );
 

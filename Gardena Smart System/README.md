@@ -65,13 +65,28 @@ W folderze `server/` utwórz plik o nazwie `.env` i uzupełnij go swoimi kluczam
 # Klucze API Gardena (Application Key i Application Secret)
 GARDENA_CLIENT_ID=TWOJ_APPLICATION_KEY
 GARDENA_CLIENT_SECRET=TWOJ_APPLICATION_SECRET
-GARDENA_API_KEY=${GARDENA_CLIENT_ID} # Zazwyczaj jest taki sam jak CLIENT_ID
+GARDENA_API_KEY=TWOJ_APPLICATION_KEY # Zazwyczaj jest taki sam jak CLIENT_ID
 
 # Klucz API z OpenWeatherMap
 OPENWEATHERMAP_API_KEY=TWOJ_KLUCZ_OPENWEATHERMAP
 
 # Sekret dla sesji Express
 SESSION_SECRET=wygeneruj_losowy_dlugi_ciag_znakow
+
+# Adres przekierowania dla autoryzacji Gardena w trybie deweloperskim
+GARDENA_REDIRECT_URI=http://localhost:3001/callback
+
+# Port serwera
+SERVER_PORT=3001
+```
+
+W folderze `client/` utwórz plik o nazwie `.env.development` i uzupełnij go adresem URL serwera backendowego.
+
+**Plik `client/.env.development`:**
+
+```env
+# Adres URL serwera backendowego w trybie deweloperskim
+VITE_BACKEND_URL=http://localhost:3001
 ```
 
 ### 3. Instalacja Zależności
@@ -90,33 +105,39 @@ Z głównego folderu projektu uruchom komendę, która jednocześnie uruchomi se
 npm run dev
 ```
 
-Aplikacja frontendowa będzie dostępna pod adresem `http://localhost:3000` (lub innym wskazanym - do ustawienia w vite.config.js).
+Aplikacja frontendowa będzie dostępna pod adresem `http://localhost:3000` (lub innym wskazanym w pliku konfiguracyjnym `vite.config.js`).
 
 ## 🌐 Wdrożenie na Render.com
 
-Projekt jest w pełni przygotowany do wdrożenia na darmowym planie platformy Render.com. Wymaga to skonfigurowania dwóch oddzielnych usług.
+Projekt jest w pełni przygotowany do wdrożenia na darmowym planie platformy Render.com jako jeden Web Service, który obsługuje zarówno backend, jak i frontend.
 
-### Backend (Web Service)
+### Konfiguracja Web Service
 
-- **Root Directory**: `Gardena Smart System/server`
-- **Build Command**: `npm install`
-- **Start Command**: `node index.js`
-- **Health Check Path**: `/healthz`
-- **Zmienne środowiskowe**: Przepisz wszystkie zmienne z pliku `.env` do zakładki "Environment" w ustawieniach usługi. Dodaj również `NODE_ENV` z wartością `production`.
+- **Root Directory**:
 
-### Frontend (Static Site)
+```bash
+`Gardena Smart System/server`
+```
 
-- **Root Directory**: `Gardena Smart System/client`
-- **Build Command**: `npm run build`
-- **Publish Directory**: `dist`
-- **Zmienne środowiskowe**: Dodaj `VITE_BACKEND_URL` z adresem URL Twojej usługi backendowej (np. `https://twoja-nazwa-backendu.onrender.com`).
+- **Build Command**:
 
-### Reguły "Redirects/Rewrites" (w ustawieniach frontendu)
+```bash
+cd ../client && npm install && npm run build && cd ../server && npm install
+```
 
-| Typ       | Źródło (Source) | Cel (Destination)                                   |
-| :-------- | :-------------- | :-------------------------------------------------- |
-| `Rewrite` | `/api/*`        | `https://<twoja-nazwa-backendu>.onrender.com/api/*` |
-| `Rewrite` | `/*`            | `/index.html`                                       |
+- **Start Command**:
+
+```bash
+ npm start
+```
+
+- **Health Check Path**:
+
+```bash
+ `/healthz`
+```
+
+- **Zmienne środowiskowe**: Przepisz wszystkie zmienne z pliku `server.env` do zakładki "Environment" w ustawieniach usługi. Nie dodawaj`VITE_BACKEND_URL`.
 
 ## 📂 Struktura Projektu
 
@@ -129,7 +150,7 @@ Główny plik `package.json` w katalogu nadrzędnym służy do zarządzania obom
 
 ## 📜 Dostępne Skrypty
 
-Wszystkie skrypty należy uruchamiać z **głównego folderu projektu -> Gardena Smart System**.
+Wszystkie skrypty należy uruchamiać z **głównego folderu projektu -> `Gardena Smart System`**.
 
 | Skrypt                | Opis                                                                  |
 | :-------------------- | :-------------------------------------------------------------------- |

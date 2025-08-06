@@ -72,7 +72,7 @@ const DeviceDetailPage = () => {
 	}, [device, sendCommand, isSubmitting]);
 
 	if (loading && !device) {
-		return <Loader />;
+		return <Loader message="Ładowanie szczegółów urządzenia..." />;
 	}
 
 	if (!device) {
