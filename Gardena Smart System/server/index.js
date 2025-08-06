@@ -178,27 +178,6 @@ async function sendControlCommand(commandPayload) {
 			},
 		});
 		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
-
-		// --- NOWA LOGIKA: Planowanie zatrzymania podlewania ---
-		if (action === 'startWatering' && value > 0) {
-			const wateringDurationMs = parseInt(value, 10) * 60 * 1000;
-			const stopTime = new Date(Date.now() + wateringDurationMs);
-			
-			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
-			
-			const stopJob = {
-				deviceId,
-				valveServiceId,
-				action: 'stopWatering',
-				value: 0,
-				enabled: true
-			};
-			
-			schedule.scheduleJob(stopTime, { tz: 'UTC' }, () => {
-				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
-				sendControlCommand(stopJob);
-			});
-		}
 		
 	} catch (error) {
 		throw error;
@@ -215,48 +194,118 @@ const isAuthenticated = (req, res, next) => {
 };
 
 const scheduledJobs = new Map();
+
+// Funkcja do planowania jednego zadania
+const scheduleJob = (job) => {
+	if (job.enabled) {
+		const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, async () => {
+			try {
+				await sendControlCommand(job);
+				// Po pomyślnym wykonaniu, wyłącz harmonogram w pliku db.json
+				await updateAndReschedule(schedules => {
+					const jobIndex = schedules.findIndex(j => j.id === job.id);
+					if (jobIndex !== -1) {
+						schedules[jobIndex].enabled = false;
+					}
+					return schedules;
+				});
+				console.log(`[INFO] Zadanie ${job.id} zakończone i wyłączone.`);
+			} catch (error) {
+				console.error(`[BŁĄD ZADANIA] Zadanie ${job.id} nie powiodło się: ${error.message}`);
+			}
+		});
+		scheduledJobs.set(job.id, scheduledJob);
+	}
+};
+
 async function loadSchedulesAndRun() {
 	try {
+		// Anulujemy wszystkie istniejące zadania
 		for (const job of scheduledJobs.values()) {
 			job.cancel();
 		}
 		scheduledJobs.clear();
 
-		const data = await fs.readFile(DB_PATH, 'utf8');
-		const db = JSON.parse(data);
-		if (db && db.schedules) {
-			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
-			db.schedules.forEach(job => {
+		// Poprawka: Dodano obsługę pustego lub uszkodzonego pliku db.json
+		let schedules = [];
+		try {
+			const data = await fs.readFile(DB_PATH, 'utf8');
+			const parsedData = JSON.parse(data);
+			if (parsedData && parsedData.schedules) {
+				schedules = parsedData.schedules;
+			}
+		} catch (error) {
+			if (error.code === 'ENOENT') {
+				console.log('Plik db.json nie istnieje, tworzenie nowego.');
+				await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
+				schedules = [];
+			} else if (error instanceof SyntaxError) {
+				console.error('Błąd parsowania db.json. Plik jest pusty lub uszkodzony. Inicjalizuję nowy plik.');
+				await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
+				schedules = [];
+			} else {
+				throw new Error(`Nie można załadować harmonogramów z bazy danych: ${error.message}`);
+			}
+		}
+
+		if (schedules.length > 0) {
+			console.log(`[INFO] Znaleziono ${schedules.length} harmonogramów w bazie danych.`);
+			schedules.forEach(job => {
 				if (job.enabled) {
-					// Planowanie zadania z pliku db.json
-					const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, () => {
-						// Wywołanie sendControlCommand z całym obiektem zadania
-						sendControlCommand(job);
-					});
-					scheduledJobs.set(job.id, scheduledJob);
+					scheduleJob(job);
 				}
 			});
 			console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
 		}
 	} catch (error) {
-		if (error.code === 'ENOENT') {
-			console.log('Plik db.json nie istnieje, tworzenie nowego.');
-			await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
-		} else {
-			throw new Error(`Nie można załadować harmonogramów z bazy danych: ${error.message}`);
-		}
+		console.error(`[BŁĄD SERWERA] W funkcji loadSchedulesAndRun: ${error.message}`);
 	}
 }
 
-// Funkcja pomocnicza do aktualizacji harmonogramów
-async function updateSchedules(updateLogic) {
-	const data = await fs.readFile(DB_PATH, 'utf8');
-	const db = JSON.parse(data);
+// Funkcja pomocnicza do aktualizacji harmonogramów z logiką planowania
+async function updateAndReschedule(updateLogic) {
+	let db = { schedules: [] };
+	try {
+		const data = await fs.readFile(DB_PATH, 'utf8');
+		db = JSON.parse(data);
+	} catch (error) {
+		if (error.code === 'ENOENT' || error instanceof SyntaxError) {
+			console.warn('Plik db.json nie istnieje lub jest uszkodzony. Używam pustej bazy danych.');
+			await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
+		} else {
+			throw error;
+		}
+	}
 
-	db.schedules = updateLogic(db.schedules || []);
+	const oldSchedules = db.schedules || [];
+	const updatedSchedules = updateLogic(oldSchedules);
+	db.schedules = updatedSchedules;
 
 	await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-	await loadSchedulesAndRun();
+	
+	// Porównanie i aktualizacja zadań
+	const oldJobIds = new Set(oldSchedules.map(s => s.id));
+	const newJobIds = new Set(updatedSchedules.map(s => s.id));
+
+	// Anulowanie usuniętych lub wyłączonych zadań
+	oldSchedules.forEach(oldJob => {
+		const newJob = updatedSchedules.find(s => s.id === oldJob.id);
+		if (!newJob || !newJob.enabled) {
+			const job = scheduledJobs.get(oldJob.id);
+			if (job) {
+				job.cancel();
+				scheduledJobs.delete(oldJob.id);
+			}
+		}
+	});
+
+	// Planowanie nowych lub włączonych zadań
+	updatedSchedules.forEach(newJob => {
+		if (newJob.enabled && !scheduledJobs.has(newJob.id)) {
+			scheduleJob(newJob);
+		}
+	});
+
 	return db.schedules;
 }
 
@@ -396,7 +445,7 @@ app.get('/api/schedules/next/:deviceId', isAuthenticated, async (req, res, next)
 app.post('/api/schedules', isAuthenticated, async (req, res, next) => {
 	try {
 		const newJob = { ...req.body, id: uuidv4() };
-		await updateSchedules(schedules => [...schedules, newJob]);
+		await updateAndReschedule(schedules => [...schedules, newJob]);
 		res.status(201).json(newJob);
 	} catch (error) {
 		next(error);
@@ -411,7 +460,7 @@ app.patch('/api/schedules/:id/toggle', isAuthenticated, async (req, res, next) =
 			return res.status(400).json({ error: 'Nieprawidłowy status "enabled". Oczekiwano wartości boolean.' });
 		}
 		let updatedJob = null;
-		await updateSchedules(schedules => {
+		await updateAndReschedule(schedules => {
 			const jobIndex = schedules.findIndex(job => job.id === id);
 			if (jobIndex === -1) {
 				const err = new Error('Nie znaleziono harmonogramu.');
@@ -428,9 +477,32 @@ app.patch('/api/schedules/:id/toggle', isAuthenticated, async (req, res, next) =
 	}
 });
 
+// Nowy endpoint do wstrzymywania pojedynczego zadania.
+app.patch('/api/schedules/:id/disable-once', isAuthenticated, async (req, res, next) => {
+	try {
+		const { id } = req.params;
+		let updatedJob = null;
+		await updateAndReschedule(schedules => {
+			const jobIndex = schedules.findIndex(job => job.id === id);
+			if (jobIndex === -1) {
+				const err = new Error('Nie znaleziono harmonogramu.');
+				err.statusCode = 404;
+				throw err;
+			}
+			schedules[jobIndex].enabled = false;
+			updatedJob = schedules[jobIndex];
+			return schedules;
+		});
+		res.status(200).json(updatedJob);
+	} catch (error) {
+		next(error);
+	}
+});
+
+
 const setAllSchedulesEnabled = async (res, next, enabled, filterFn = () => true) => {
 	try {
-		await updateSchedules(schedules => {
+		await updateAndReschedule(schedules => {
 			schedules.filter(filterFn).forEach(job => (job.enabled = enabled));
 			return schedules;
 		});
@@ -453,7 +525,7 @@ app.patch('/api/schedules/device/:deviceId/enable', isAuthenticated, (req, res, 
 
 const deleteSchedules = async (res, next, filterFn) => {
 	try {
-		await updateSchedules(schedules => schedules.filter(filterFn));
+		await updateAndReschedule(schedules => schedules.filter(filterFn));
 		res.status(200).json({ message: 'Wybrane harmonogramy zostały usunięte.' });
 	} catch (error) {
 		next(error);

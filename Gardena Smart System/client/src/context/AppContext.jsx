@@ -4,6 +4,7 @@ import getMainDeviceId from '@/utils/getMainDeviceId';
 import { transformGardenaData } from '@/utils/gardenaDataTransformer';
 import { apiClient } from '@/utils/apiClient';
 import { getMowerErrorInfo } from '@/utils/statusUtils';
+import { disableScheduleOnce, toggleSchedule } from '@/utils/scheduleApi';
 
 const AppContext = createContext();
 
@@ -127,6 +128,35 @@ export const AppProvider = ({ children }) => {
 						return;
 					}
 
+					// Nowa logika do obsługi zakończenia podlewania i wyłączenia harmonogramu
+					// Sprawdzamy stan zaworu i wysyłamy komendę, jeśli podlewanie się zakończyło
+					if (updatedService.type === 'VALVE' && updatedService.attributes?.activity?.value?.toUpperCase() === 'CLOSED') {
+						const valveId = updatedService.id;
+
+						// Logika do wykrywania zakończenia podlewania:
+						// Musimy sprawdzić, czy zawór był wcześniej otwarty.
+						const prevValve = prevDevicesRef.current
+							.find(device => device.id === mainDeviceIdToUpdate)
+							?._valveServices?.find(valve => valve.id === valveId);
+
+						const wasWatering = prevValve?.attributes?.activity?.value?.toUpperCase() === 'OPEN';
+
+						if (wasWatering) {
+							// Jeśli podlewanie faktycznie się zakończyło, wyłącz harmonogram
+							fetch(`/api/schedules/device/${mainDeviceIdToUpdate}/disable`, {
+								method: 'PATCH'
+							})
+							.then(() => {
+								addNotificationToBell(`Podlewanie zakończyło się.`, 'success');
+								showToastNotification(`Podlewanie zakończyło się.`, 'success');
+							})
+							.catch(error => {
+								console.error('Błąd podczas wyłączania harmonogramu:', error);
+								showToastNotification(`Błąd: Nie udało się wyłączyć harmonogramu.`, 'error');
+							});
+						}
+					}
+					
 					setDevices(prevDevices => {
 						const nextDevices = prevDevices.map(device => {
 							if (device.id === mainDeviceIdToUpdate) {
@@ -183,7 +213,7 @@ export const AppProvider = ({ children }) => {
 				}
 			};
 		}
-	}, [isAuthenticated, showToastNotification, fetchGardenaDevices]);
+	}, [isAuthenticated, showToastNotification, fetchGardenaDevices, addNotificationToBell]);
 
 	const prevDevicesRef = useRef([]);
 
@@ -228,24 +258,8 @@ export const AppProvider = ({ children }) => {
 				}
 
 				// --- LOGIKA POWIADOMIEŃ DLA STEROWNIKÓW NAWADNIANIA ---
-				if (currentDevice.type === 'SMART_WATERING_COMPUTER') {
-					const prevValves = prevDevice._valveServices || [];
-					const currentValves = currentDevice._valveServices || [];
-
-					currentValves.forEach(currentValve => {
-						const prevValve = prevValves.find(v => v.id === currentValve.id);
-						if (!prevValve) return; 
-
-						const wasWatering = ['manual_watering', 'scheduled_watering', 'running', 'open'].includes(prevValve.attributes?.activity?.value?.toLowerCase());
-						const isNowClosed = ['closed'].includes(currentValve.attributes?.activity?.value?.toLowerCase());
-
-						if (wasWatering && isNowClosed) {
-							const valveName = currentValve.attributes?.name?.value || `Zawór ${currentValve.id.split(':').pop()}`;
-							addNotificationToBell(`Podlewanie przez "${valveName}" zakończyło się.`, 'success');
-							showToastNotification(`Podlewanie przez "${valveName}" zakończyło się.`, 'success');
-						}
-					});
-				}
+				// Ta część została usunięta, ponieważ logika powiadomień została przeniesiona do socket.onmessage,
+				// aby uniknąć błędów i duplikatów.
 			
 			});
 		}

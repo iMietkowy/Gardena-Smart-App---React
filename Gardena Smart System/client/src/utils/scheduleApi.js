@@ -40,6 +40,10 @@ export const deleteSchedule = id => {
 	return apiClient(`/api/schedules/${id}`, { method: 'DELETE' });
 };
 
+export const disableScheduleOnce = id => {
+	return apiClient(`/api/schedules/${id}/disable-once`, { method: 'PATCH' });
+};
+
 export const performMassAction = (actionType, deviceId) => {
 	const isAll = deviceId === 'all';
 	let url = '';

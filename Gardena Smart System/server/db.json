@@ -1,3 +1,15 @@
 {
-  "schedules": []
+  "schedules": [
+    {
+      "cron": "0 6 * * 4",
+      "deviceId": "f5120a34-0d39-49a9-9317-0f0f88d0e1fc",
+      "valveServiceId": "f5120a34-0d39-49a9-9317-0f0f88d0e1fc:3",
+      "deviceName": "Sikawka Mietka - Linia",
+      "action": "startWatering",
+      "value": 1,
+      "deviceType": "SMART_WATERING_COMPUTER",
+      "enabled": false,
+      "id": "fd1310e8-f665-4752-a970-b83015d08981"
+    }
+  ]
 }
