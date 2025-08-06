@@ -179,8 +179,7 @@ async function sendControlCommand(commandPayload) {
 		});
 		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
 
-		// --- Planowanie zatrzymania podlewania ---
-		// Ta logika będzie wywoływana tylko z loadSchedulesAndRun, gdy startujemy harmonogram
+		// --- NOWA LOGIKA: Planowanie zatrzymania podlewania ---
 		if (action === 'startWatering' && value > 0) {
 			const wateringDurationMs = parseInt(value, 10) * 60 * 1000;
 			const stopTime = new Date(Date.now() + wateringDurationMs);
