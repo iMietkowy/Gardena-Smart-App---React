@@ -1,0 +1,64 @@
+@use '../common/variables' as v;
+
+.custom-tooltip {
+	position: fixed;
+	background-color: var(--bg-secondary);
+	color: var(--text-primary);
+	border: 1px solid var(--border-primary);
+	border-radius: 0.75rem;
+	padding: 1.5rem;
+	font-size: 1rem;
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+	z-index: 1000;
+	pointer-events: none;
+	white-space: pre-wrap;
+	max-width: 300px;
+	opacity: 0;
+	animation: fadeInTooltip 0.2s forwards;
+	text-align: left;
+
+	p {
+		margin: 0;
+		padding: 0;
+		line-height: 1.5;
+		color: var(--text-secondary);
+		margin-bottom: 0.5rem;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+	}
+
+	strong {
+		color: var(--text-primary);
+		font-weight: 600;
+	}
+
+	.custom-tooltip-content {
+		background-color: var(--bg-primary);
+		border: 1px solid var(--border-primary);
+		border-radius: 0.5rem;
+		padding: 1rem;
+		margin-top: 0.75rem;
+		color: var(--text-secondary);
+	}
+
+	@media (max-width: 767px) {
+		font-size: 0.9rem;
+		padding: 1rem;
+		max-width: 250px;
+
+		.custom-tooltip-content {
+			padding: 0.75rem;
+		}
+	}
+}
+
+@keyframes fadeInTooltip {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}

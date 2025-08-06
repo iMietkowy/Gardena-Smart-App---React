@@ -1,8 +1,3 @@
-/* Rozwiązanie dla "Incompatible @charset statements": usunięto @charset z tego pliku */
-/*
-@charset "UTF-8";
-*/
-
 @use './common/reset';
 @use './common/variables' as v;
 @use './common/global';
@@ -21,4 +16,5 @@
 @use './common/modal';
 @use './common/toast';
 @use './components/battery_status';
-@use './components/weather_widget'; 
+@use './components/weather_widget';
+@use './common/custom_tooltip';

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 
 const NotificationContext = createContext();
 
@@ -27,35 +27,47 @@ export const NotificationProvider = ({ children }) => {
 		}
 	}, [notifications]);
 
-	const addNotificationToBell = (message, type = 'info') => {
+	// Memoizuje funkcje za pomocą useCallback, aby miały stabilne referencje
+	const addNotificationToBell = useCallback((message, type = 'info') => {
 		setNotifications(prev => [
-			...prev.slice(-9),
+			...prev.slice(-9), // Zachowaj tylko 10 ostatnich powiadomień
 			{ id: Date.now(), message, type, timestamp: new Date(), read: false },
 		]);
-	};
+	}, []);
 
-	const showToastNotification = (message, type = 'info') => {
+	const showToastNotification = useCallback((message, type = 'info') => {
 		const id = Date.now();
 		setToastNotifications(prev => [...prev, { id, message, type }]);
-	};
+	}, []);
 
-	const dismissToast = id => {
+	const dismissToast = useCallback(id => {
 		setToastNotifications(prev => prev.filter(toast => toast.id !== id));
-	};
+	}, []);
 
-	const markNotificationAsRead = id => {
+	const markNotificationAsRead = useCallback(id => {
 		setNotifications(prev => prev.map(notif => (notif.id === id ? { ...notif, read: true } : notif)));
-	};
+	}, []);
 
-	const value = {
-		notifications,
-		toastNotifications,
-		setNotifications,
-		addNotificationToBell,
-		showToastNotification,
-		dismissToast,
-		markNotificationAsRead,
-	};
+	// Memoizuje obiekt 'value' za pomocą useMemo, aby zapobiec niepotrzebnym re-renderom konsumentów kontekstu
+	const value = useMemo(
+		() => ({
+			notifications,
+			toastNotifications,
+			setNotifications,
+			addNotificationToBell,
+			showToastNotification,
+			dismissToast,
+			markNotificationAsRead,
+		}),
+		[
+			notifications,
+			toastNotifications,
+			addNotificationToBell,
+			showToastNotification,
+			dismissToast,
+			markNotificationAsRead,
+		]
+	);
 
 	return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 };

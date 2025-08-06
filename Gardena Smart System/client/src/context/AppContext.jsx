@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from 'react';
 import { useNotificationContext } from './NotificationContext';
 import getMainDeviceId from '@/utils/getMainDeviceId';
 import { transformGardenaData } from '@/utils/gardenaDataTransformer';
@@ -187,25 +187,61 @@ export const AppProvider = ({ children }) => {
 	const prevDevicesRef = useRef([]);
 
 	useEffect(() => {
-		if (isAuthenticated && prevDevicesRef.current.length > 0) {
+		// Uruchomienie tej logiki tylko po początkowym załadowaniu urządzeń i gdy użytkownik jest uwierzytelniony
+		if (isAuthenticated && devices.length > 0 && prevDevicesRef.current.length > 0) { 
 			devices.forEach(currentDevice => {
 				const prevDevice = prevDevicesRef.current.find(d => d.id === currentDevice.id);
 
-				if (prevDevice && currentDevice.type === 'MOWER') {
-					const wasMowing = ['mowing', 'ok_cutting'].includes(prevDevice.attributes?.activity?.value);
-					const isNowParkedOrCharging = ['parked', 'charging'].includes(currentDevice.attributes?.activity?.value);
+				if (!prevDevice) return; 
 
-					if (wasMowing && isNowParkedOrCharging) {
+				// Logika powiadomień dla kosiarek
+				if (currentDevice.type === 'MOWER') {
+					// Zaktualizowano: Rozszerzono stany "było koszenie", aby uwzględnić również stany przejściowe po koszeniu, ale przed parkowaniem/ładowaniem
+					const wasMowingOrSearching = ['mowing', 'ok_cutting', 'ok_searching'].includes(prevDevice.attributes?.activity?.value?.toLowerCase());
+					
+					const isNowParkedOrCharging = [
+						'parked', 
+						'charging', 
+						'parked_autotimer', 
+						'parked_frost',     
+						'parked_timer',
+						'parked_until_next_task',
+						'parked_until_further_notice'
+					].includes(currentDevice.attributes?.activity?.value?.toLowerCase());
+
+					if (wasMowingOrSearching && isNowParkedOrCharging) { // Zmieniono warunek na wasMowingOrSearching
 						addNotificationToBell(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
 						showToastNotification(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
 					}
 				}
+
+				// --- NOWA LOGIKA POWIADOMIEŃ DLA STEROWNIKÓW NAWADNIANIA ---
+				if (currentDevice.type === 'SMART_WATERING_COMPUTER') {
+					const prevValves = prevDevice._valveServices || [];
+					const currentValves = currentDevice._valveServices || [];
+
+					currentValves.forEach(currentValve => {
+						const prevValve = prevValves.find(v => v.id === currentValve.id);
+						if (!prevValve) return; 
+
+						const wasWatering = ['manual_watering', 'scheduled_watering', 'running', 'open'].includes(prevValve.attributes?.activity?.value?.toLowerCase());
+						const isNowClosed = ['closed'].includes(currentValve.attributes?.activity?.value?.toLowerCase());
+
+						if (wasWatering && isNowClosed) {
+							const valveName = currentValve.attributes?.name?.value || `Zawór ${currentValve.id.split(':').pop()}`;
+							addNotificationToBell(`Podlewanie przez "${valveName}" zakończyło się.`, 'success');
+							showToastNotification(`Podlewanie przez "${valveName}" zakończyło się.`, 'success');
+						}
+					});
+				}
+				// --- KONIEC NOWEJ LOGIKI ---
 			});
 		}
+		// Zawsze aktualizuj ref, aby mieć aktualny stan poprzednich urządzeń
 		prevDevicesRef.current = devices;
 	}, [devices, isAuthenticated, addNotificationToBell, showToastNotification]);
 
-	const value = {
+	const value = useMemo(() => ({
 		devices,
 		loading,
 		error,
@@ -217,7 +253,19 @@ export const AppProvider = ({ children }) => {
 		login,
 		logout,
 		checkAuthStatus,
-	};
+	}), [
+		devices,
+		loading,
+		error,
+		theme,
+		toggleTheme,
+		fetchGardenaDevices,
+		isAuthenticated,
+		user,
+		login,
+		logout,
+		checkAuthStatus,
+	]);
 
 	return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
@@ -225,5 +273,3 @@ export const AppProvider = ({ children }) => {
 export const useAppContext = () => {
 	return useContext(AppContext);
 };
-
-//test

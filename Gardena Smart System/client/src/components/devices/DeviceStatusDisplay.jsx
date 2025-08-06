@@ -52,7 +52,7 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 	const detailedStatusItems = [];
 	const cardStatusItems = [];
 
-	// Stan połączenia
+	// Stan połączenia (wspólny dla obu widoków)
 	if (attributes.rfLinkState?.value) {
 		const content = (
 			<StatusItem
@@ -74,98 +74,155 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 		);
 	}
 
-	// Logika dla podlewania
-	if (device.type === 'SMART_WATERING_COMPUTER' && isDetailed) {
-		const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
-		const activeValve = device._valveServices?.find(v =>
-			activeWateringStates.includes(v.attributes?.activity?.value?.toUpperCase())
-		);
-
-		if (activeValve) {
-			const valveName = activeValve.attributes?.name?.value || `Zawór ${activeValve.id.split(':').pop()}`;
-			detailedStatusItems.push(
-				<StatusItem
-					key='overallState'
-					label='Stan ogólny'
-					value='Aktywny'
-					className='status-ok'
-					timestamp={activeValve.attributes?.activity?.timestamp}
-				/>
-			);
-			detailedStatusItems.push(
-				<StatusItem
-					key='wateringActivity'
-					label='Aktywność'
-					value={`Podlewanie (${valveName})`}
-					className='status-ok'
-					timestamp={activeValve.attributes?.activity?.timestamp}
-				/>
-			);
-			const durationInfo = activeValve.attributes?.duration;
-			if (durationInfo && durationInfo.value > 0) {
-				const startTime = new Date(durationInfo.timestamp);
-				const endTime = new Date(startTime.getTime() + durationInfo.value * 1000);
-				const now = new Date();
-				if (endTime > now) {
-					const endTimeFormatted = endTime.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-					detailedStatusItems.push(
-						<StatusItem key='endTime' label='Działa do' value={endTimeFormatted} className='status-ok' />
-					);
-				}
-			}
-		} else {
-			const stateInfo = getStatusInfo(attributes.state?.value);
-			detailedStatusItems.push(
-				<StatusItem
-					key='overallState'
-					label='Stan ogólny'
-					value={stateInfo.text}
-					timestamp={attributes.state?.timestamp}
-					className={stateInfo.className}
-				/>
-			);
-			const activityInfo = getStatusInfo(attributes.activity?.value);
-			detailedStatusItems.push(
-				<StatusItem
-					key='activity'
-					label='Aktywność'
-					value={activityInfo.text}
-					timestamp={attributes.activity?.timestamp}
-					className={activityInfo.className}
-				/>
-			);
-			const lastClosedValveActivity = device._valveServices
-				?.filter(v => v.attributes?.activity?.value?.toUpperCase() === 'CLOSED' && v.attributes?.activity?.timestamp)
-				.sort((a, b) => new Date(b.attributes.activity.timestamp) - new Date(a.attributes.activity.timestamp))[0];
-
-			if (lastClosedValveActivity) {
-				const activityTimestamp = lastClosedValveActivity.attributes.activity.timestamp;
-				const valveName =
-					lastClosedValveActivity.attributes?.name?.value || `Zawór ${lastClosedValveActivity.id.split(':').pop()}`;
-
+	// --- LOGIKA DLA WIDOKU SZCZEGÓŁOWEGO (isDetailed = true) ---
+	if (isDetailed) {
+		// Logika dla MOWER w widoku szczegółowym
+		if (device.type === 'MOWER') {
+			if (attributes.state?.value) {
+				const stateInfo = getStatusInfo(attributes.state.value);
 				detailedStatusItems.push(
 					<StatusItem
-						key='lastActivity'
-						label='Ostatnio podlewał'
-						value={`${valveName} (zakończono)`}
-						className='status-info'
-						timestamp={activityTimestamp}
+						key='overallState'
+						label='Stan ogólny'
+						value={stateInfo.text}
+						timestamp={attributes.state?.timestamp}
+						className={stateInfo.className}
 					/>
 				);
-			} else {
+			}
+			if (attributes.activity?.value) {
+				const activityInfo = getStatusInfo(attributes.activity.value);
 				detailedStatusItems.push(
 					<StatusItem
-						key='noRecentActivity'
-						label='Ostatnio podlewał'
-						value='Brak danych'
-						className='status-warn'
-						timestamp={null}
+						key='activity'
+						label='Aktywność'
+						value={activityInfo.text}
+						timestamp={attributes.activity?.timestamp}
+						className={activityInfo.className}
 					/>
 				);
 			}
 		}
-	} else {
-		// Logika dla ogólnego stanu
+		// Logika dla SMART_WATERING_COMPUTER w widoku szczegółowym
+		else if (device.type === 'SMART_WATERING_COMPUTER') {
+			const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
+			const activeValve = device._valveServices?.find(v =>
+				activeWateringStates.includes(v.attributes?.activity?.value?.toUpperCase())
+			);
+
+			if (activeValve) {
+				const valveName = activeValve.attributes?.name?.value || `Zawór ${activeValve.id.split(':').pop()}`;
+				detailedStatusItems.push(
+					<StatusItem
+						key='overallState'
+						label='Stan ogólny'
+						value='Aktywny'
+						className='status-ok'
+						timestamp={activeValve.attributes?.activity?.timestamp}
+					/>
+				);
+				detailedStatusItems.push(
+					<StatusItem
+						key='wateringActivity'
+						label='Aktywność'
+						value={`Podlewanie (${valveName})`}
+						className='status-ok'
+						timestamp={activeValve.attributes?.activity?.timestamp}
+					/>
+				);
+				const durationInfo = activeValve.attributes?.duration;
+				if (durationInfo && durationInfo.value > 0) {
+					const startTime = new Date(durationInfo.timestamp);
+					const endTime = new Date(startTime.getTime() + durationInfo.value * 1000);
+					const now = new Date();
+					if (endTime > now) {
+						const endTimeFormatted = endTime.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+						detailedStatusItems.push(
+							<StatusItem key='endTime' label='Działa do' value={endTimeFormatted} className='status-ok' />
+						);
+					}
+				}
+			} else {
+				const stateInfo = getStatusInfo(attributes.state?.value);
+				detailedStatusItems.push(
+					<StatusItem
+						key='overallState'
+						label='Stan ogólny'
+						value={stateInfo.text}
+						timestamp={attributes.state?.timestamp}
+						className={stateInfo.className}
+					/>
+				);
+				const activityInfo = getStatusInfo(attributes.activity?.value);
+				detailedStatusItems.push(
+					<StatusItem
+						key='activity'
+						label='Aktywność'
+						value={activityInfo.text}
+						timestamp={attributes.activity?.timestamp}
+						className={activityInfo.className}
+					/>
+				);
+				const lastClosedValveActivity = device._valveServices
+					?.filter(v => v.attributes?.activity?.value?.toUpperCase() === 'CLOSED' && v.attributes?.activity?.timestamp)
+					.sort((a, b) => new Date(b.attributes.activity.timestamp) - new Date(a.attributes.activity.timestamp))[0];
+
+				if (lastClosedValveActivity) {
+					const activityTimestamp = lastClosedValveActivity.attributes.activity.timestamp;
+					const valveName =
+						lastClosedValveActivity.attributes?.name?.value || `Zawór ${lastClosedValveActivity.id.split(':').pop()}`;
+
+					detailedStatusItems.push(
+						<StatusItem
+							key='lastActivity'
+							label='Ostatnio podlewał'
+							value={`${valveName} (zakończono)`}
+							className='status-info'
+							timestamp={activityTimestamp}
+						/>
+					);
+				} else {
+					detailedStatusItems.push(
+						<StatusItem
+							key='noRecentActivity'
+							label='Ostatnio podlewał'
+							value='Brak danych'
+							className='status-warn'
+							timestamp={null}
+						/>
+					);
+				}
+			}
+		}
+		// Logika dla SMART_PLUG w widoku szczegółowym
+		else if (device.type === 'SMART_PLUG') {
+			if (attributes.state?.value) {
+				const stateInfo = getStatusInfo(attributes.state.value);
+				detailedStatusItems.push(
+					<StatusItem
+						key='overallState'
+						label='Stan ogólny'
+						value={stateInfo.text}
+						timestamp={attributes.state?.timestamp}
+						className={stateInfo.className}
+					/>
+				);
+			}
+			if (attributes.activity?.value) {
+				const activityInfo = getStatusInfo(attributes.activity.value);
+				detailedStatusItems.push(
+					<StatusItem
+						key='activity'
+						label='Aktywność'
+						value={activityInfo.text}
+						timestamp={attributes.activity?.timestamp}
+						className={activityInfo.className}
+					/>
+				);
+			}
+		}
+	} else { // --- LOGIKA DLA WIDOKU KARTY (isDetailed = false) ---
+		// Zawsze dodawaj ogólny stan, jeśli jest dostępny
 		if (attributes.state?.value) {
 			let stateValue = attributes.state.value;
 			let stateClass = '';
@@ -180,15 +237,6 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 				stateValue = text;
 				stateClass = className;
 			}
-			detailedStatusItems.push(
-				<StatusItem
-					key='generalState'
-					label='Stan ogólny'
-					value={stateValue}
-					className={stateClass}
-					timestamp={isDetailed ? attributes.state?.timestamp : null}
-				/>
-			);
 			cardStatusItems.push(
 				<li key='generalState'>
 					<span className='status'>Stan ogólny:</span>
@@ -197,39 +245,34 @@ const DeviceStatusDisplay = ({ device, isDetailed = false }) => {
 			);
 		}
 
-		// Logika dla aktywności
+		// Zawsze dodawaj aktywność, jeśli jest dostępna, z uwzględnieniem specyfiki urządzenia
 		if (attributes.activity?.value) {
 			let activityText = attributes.activity.value;
 			let activityClass = '';
 
-			// Nadpisanie aktywności dla SMART_WATERING_COMPUTER, jeśli nie jest w trybie szczegółowym
-			if (device.type === 'SMART_WATERING_COMPUTER' && !isDetailed) {
+			// Specjalna obsługa aktywności dla SMART_WATERING_COMPUTER w widoku karty
+			if (device.type === 'SMART_WATERING_COMPUTER') {
 				const activeWateringStates = ['MANUAL_WATERING', 'SCHEDULED_WATERING', 'RUNNING', 'OPEN'];
 				const anyValveActive = device._valveServices?.some(v =>
 					activeWateringStates.includes(v.attributes?.activity?.value?.toUpperCase())
 				);
 				if (anyValveActive) {
-					activityText = 'Aktywny';
+					const activeValve = device._valveServices.find(v =>
+						activeWateringStates.includes(v.attributes?.activity?.value?.toUpperCase())
+					);
+					const valveName = activeValve.attributes?.name?.value || `Zawór ${activeValve.id.split(':').pop()}`;
+					activityText = `Podlewanie (${valveName})`;
 					activityClass = 'status-ok';
 				} else {
 					const { text, className } = getStatusInfo(attributes.activity.value);
 					activityText = text;
 					activityClass = className;
 				}
-			} else {
+			} else { // Dla MOWER i SMART_PLUG, użyj standardowych informacji o aktywności
 				const { text, className } = getStatusInfo(attributes.activity.value);
 				activityText = text;
 				activityClass = className;
 			}
-			detailedStatusItems.push(
-				<StatusItem
-					key='activity'
-					label='Aktywność'
-					value={activityText}
-					className={activityClass}
-					timestamp={attributes.activity?.timestamp}
-				/>
-			);
 			cardStatusItems.push(
 				<li key='activity'>
 					<span className='status'>Aktywność:</span>

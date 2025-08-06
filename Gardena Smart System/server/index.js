@@ -34,10 +34,11 @@ app.use(express.static(frontendDistPath));
 // Konfiguracja CORS dla produkcji i deweloperki
 const allowedOrigins = [
 	'http://localhost:3000', // Dev jeśli zmienisz konfigurację protu w Vite wprowadz zmiany
-
-	// --- Dodaj tutaj nowy, główny adres URL Twojego serwisu Render.com ---
-	'https://gardena-smart-app.onrender.com',
 ];
+
+if (process.env.RENDER_FRONTEND_URL) {
+	allowedOrigins.push(process.env.RENDER_FRONTEND_URL);
+}
 
 app.use(
 	cors({

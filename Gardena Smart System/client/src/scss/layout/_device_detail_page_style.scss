@@ -178,7 +178,7 @@
 		border-radius: 8px;
 
 		@media (max-width: 767px) {
-			grid-template-columns: 1fr;
+			grid-template-columns: 1fr; /* Zmień na jedną kolumnę na małych ekranach */
 			gap: 0.5rem;
 			padding: 0.75rem;
 			font-size: 0.9rem;
@@ -199,14 +199,22 @@
 			justify-content: space-between;
 			align-items: baseline;
 			gap: 1rem;
-			flex-wrap: wrap;
+			flex-wrap: wrap; /* Pozwól na zawijanie elementów */
 		}
 
 		.status-timestamp {
 			font-size: 0.8rem;
 			color: var(--text-light);
 			font-style: italic;
-			white-space: nowrap;
+			white-space: normal; /* Zezwól na zawijanie tekstu */
+			text-align: right; /* Wyrównaj do prawej */
+			min-width: 60px; /* Minimalna szerokość, aby tekst się nie "ściskał" za bardzo */
+			flex-shrink: 0; /* Nie pozwól na zmniejszanie się tego elementu */
+
+			@media (max-width: 767px) {
+				text-align: left; /* Na małych ekranach wyrównaj do lewej */
+				width: 100%; /* Zajmij całą szerokość */
+			}
 		}
 
 		.status-value {
