@@ -57,8 +57,6 @@ app.use(
 app.use(express.json());
 
 //Konfiguracja sesji.
-// UWAGA: Sesje są teraz przechowywane w pamięci serwera i zostaną utracone po restarcie.
-// Aby sesje były trwałe, rozważ użycie trwałego magazynu sesji (np. connect-loki dla plików, lub innej bazy danych).
 const sessionParser = session({
 	secret: process.env.SESSION_SECRET,
 	resave: false,
@@ -66,7 +64,6 @@ const sessionParser = session({
 	cookie: {
 		secure: process.env.NODE_ENV === 'production',
 		sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-		maxAge: 1000 * 60 * 60 * 24 // Czas życia ciasteczka: 24 godziny (w milisekundach)
 	},
 });
 app.use(sessionParser);
@@ -115,16 +112,15 @@ async function getAccessToken() {
 }
 
 async function sendControlCommand(commandPayload) {
-	const { deviceId, action, value, deviceType, valveServiceId } = commandPayload;
+	const { deviceId, action, value, valveServiceId } = commandPayload;
 	const token = await getAccessToken();
 	const serviceIdToUse = valveServiceId || deviceId;
 	const apiUrl = `${GARDENA_SMART_API_BASE_URL}/command/${serviceIdToUse}`;
 	let commandType = '',
 		commandData = {},
 		controlResourceType = '';
-    
-    // Zaktualizowano: Zmienna payload jest teraz zdefiniowana w szerszym zakresie
-    let payload;
+
+	let payload;
 
 	switch (action) {
 		case 'start': // Mower start
@@ -145,39 +141,13 @@ async function sendControlCommand(commandPayload) {
 			commandType = 'START_SECONDS_TO_OVERRIDE';
 			commandData = { seconds: parseInt(value, 10) * 60 };
 			controlResourceType = 'VALVE_CONTROL';
-
-			// --- NOWA LOGIKA: Planowanie zatrzymania podlewania ---
-			const wateringDurationMs = parseInt(value, 10) * 60 * 1000; // Konwertuj minuty na milisekundy
-			const stopTime = new Date(Date.now() + wateringDurationMs);
-
-			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
-
-			// Utwórz unikalny identyfikator dla tego zadania zatrzymania, aby można było je anulować, jeśli to konieczne
-			const stopJobId = `stop-watering-${valveServiceId}-${Date.now()}`;
-
-			// Zaplanuj zadanie zatrzymania
-			schedule.scheduleJob(stopJobId, stopTime, async () => {
-				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
-				try {
-					// Wywołaj komendę stopWatering dla tego konkretnego zaworu
-					await sendControlCommand({
-						deviceId: deviceId, // ID głównego urządzenia
-						action: 'stopWatering',
-						valveServiceId: valveServiceId, // ID konkretnego zaworu
-						deviceType: deviceType // Typ urządzenia
-					});
-					console.log(`[Schedule] Zatrzymanie podlewania dla zaworu ${valveServiceId} wykonane pomyślnie.`);
-				} catch (stopError) {
-					console.error(`[Schedule] Błąd podczas zatrzymywania podlewania dla zaworu ${valveServiceId}:`, stopError.message);
-				}
-			});
-			// --- KONIEC NOWEJ LOGIKI ---
 			break;
 
 		case 'stopWatering': // Watering computer stop
-			commandType = 'STOP_UNTIL_NEXT_TASK'; // Sprawdź, czy Gardena API ma bardziej ogólny STOP
+			commandType = 'STOP_UNTIL_NEXT_TASK';
 			controlResourceType = 'VALVE_CONTROL';
 			break;
+
 		case 'turnOn':
 			commandType = 'START';
 			controlResourceType = 'POWER_SOCKET_CONTROL';
@@ -189,15 +159,14 @@ async function sendControlCommand(commandPayload) {
 		default:
 			throw new Error(`Nieznana akcja: ${action}`);
 	}
-    
-    // Zaktualizowano: Payload jest konstruowany tutaj, po bloku switch
-    payload = {
-        data: {
-            type: controlResourceType,
-            id: uuidv4(),
-            attributes: { command: commandType, ...commandData },
-        },
-    };
+
+	payload = {
+		data: {
+			type: controlResourceType,
+			id: uuidv4(),
+			attributes: { command: commandType, ...commandData },
+		},
+	};
 
 	try {
 		await axios.put(apiUrl, payload, {
@@ -209,6 +178,33 @@ async function sendControlCommand(commandPayload) {
 			},
 		});
 		console.log(`Komenda ${action} dla ${serviceIdToUse} wykonana pomyślnie.`);
+
+		// --- Planowanie zatrzymania podlewania ---
+		if (action === 'startWatering' && value > 0) {
+			const wateringDurationMs = parseInt(value, 10) * 60 * 1000;
+			const stopTime = new Date(Date.now() + wateringDurationMs);
+			
+			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
+			
+			const job = {
+				deviceId,
+				valveServiceId,
+				action: 'stopWatering',
+				value: 0,
+				enabled: true
+			};
+			
+			schedule.scheduleJob(stopTime, async () => {
+				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
+				try {
+					await sendControlCommand(job);
+					console.log(`[Schedule] Zatrzymanie podlewania dla zaworu ${valveServiceId} wykonane pomyślnie.`);
+				} catch (stopError) {
+					console.error(`[Schedule] Błąd podczas zatrzymywania podlewania dla zaworu ${valveServiceId}:`, stopError.message);
+				}
+			});
+		}
+		
 	} catch (error) {
 		throw error;
 	}
@@ -237,8 +233,20 @@ async function loadSchedulesAndRun() {
 			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
 			db.schedules.forEach(job => {
 				if (job.enabled) {
-					// Upewnij się, że node-schedule interpretuje CRON jako UTC
-					const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, () => sendControlCommand(job));
+					const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, () => {
+						// Gdy zadanie jest wykonywane z harmonogramu, sprawdzamy akcję.
+						// Jeśli akcją jest startWatering, planujemy zatrzymanie,
+						// ale nie usuwamy ani nie wyłączamy samego harmonogramu.
+						sendControlCommand(job);
+
+						// Dodatkowa logika do zaplanowania stopWatering
+						if (job.action === 'startWatering' && job.value > 0) {
+							const stopJob = { ...job, action: 'stopWatering' };
+							const stopTime = new Date(Date.now() + job.value * 60 * 1000);
+							schedule.scheduleJob(stopTime, { tz: 'UTC' }, () => sendControlCommand(stopJob));
+							console.log(`[Schedule] Zaplanowano zatrzymanie na ${stopTime.toUTCString()}`);
+						}
+					});
 					scheduledJobs.set(job.id, scheduledJob);
 				}
 			});
