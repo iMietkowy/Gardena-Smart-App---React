@@ -40,19 +40,32 @@ const ScheduleForm = ({ devices, onAddSchedule }) => {
 			return;
 		}
 
-		const startDate = new Date();
-		startDate.setHours(parseInt(startHour, 10), parseInt(startMinute, 10));
-		const endDate = new Date();
-		endDate.setHours(parseInt(endHour, 10), parseInt(endMinute, 10));
+		// Utwórz daty w lokalnej strefie czasowej
+		const localStartDate = new Date();
+		localStartDate.setHours(parseInt(startHour, 10), parseInt(startMinute, 10), 0, 0);
+		const localEndDate = new Date();
+		localEndDate.setHours(parseInt(endHour, 10), parseInt(endMinute, 10), 0, 0);
 
-		if (endDate <= startDate) {
+		if (localEndDate <= localStartDate) {
 			showToastNotification('Godzina zakończenia musi być późniejsza niż godzina rozpoczęcia.', 'error');
 			return;
 		}
 
-		const durationInMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
+		// Oblicz czas trwania w minutach
+		const durationInMinutes = (localEndDate.getTime() - localStartDate.getTime()) / (1000 * 60);
+
+		// Konwertuj lokalny czas rozpoczęcia na UTC
+		const utcStartHour = localStartDate.getUTCHours();
+		const utcStartMinute = localStartDate.getUTCMinutes();
+
+		// Dni tygodnia w CRON są od 0 (Niedziela) do 6 (Sobota).
+		// daysOfWeekUIOrder mapuje PON (1) do NIE (0).
+		// Musimy upewnić się, że CRON index jest poprawny dla UTC,
+		// ale ponieważ CRON days nie mają wpływu na strefę czasową, używamy ich bezpośrednio.
 		const cronDays = days.map(dayShort => daysOfWeekUIOrder.find(d => d.short === dayShort)?.cronIndex).join(',');
-		const cron = `${startMinute} ${startHour} * * ${cronDays}`;
+		
+		// Utwórz wyrażenie CRON z godziną i minutą w UTC
+		const cron = `${utcStartMinute} ${utcStartHour} * * ${cronDays}`;
 
 		const deviceName = selectedDevice?.displayName || 'Urządzenie';
 		const valveName = selectedDevice?._valveServices?.find(v => v.id === selectedValveId)?.attributes?.name?.value;

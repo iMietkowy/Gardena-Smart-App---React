@@ -33,9 +33,10 @@ app.use(express.static(frontendDistPath));
 // Middleware
 // Konfiguracja CORS dla produkcji i deweloperki
 const allowedOrigins = [
-	'http://localhost:3000', // Dev jeśli zmienisz konfigurację protu w Vite wprowadz zmiany
+	'http://localhost:3000', // Dev
 ];
 
+// Dodaj adres URL Render.com z zmiennej środowiskowej, jeśli jest zdefiniowana
 if (process.env.RENDER_FRONTEND_URL) {
 	allowedOrigins.push(process.env.RENDER_FRONTEND_URL);
 }
@@ -56,6 +57,8 @@ app.use(
 app.use(express.json());
 
 //Konfiguracja sesji.
+// UWAGA: Sesje są teraz przechowywane w pamięci serwera i zostaną utracone po restarcie.
+// Aby sesje były trwałe, rozważ użycie trwałego magazynu sesji (np. connect-loki dla plików, lub innej bazy danych).
 const sessionParser = session({
 	secret: process.env.SESSION_SECRET,
 	resave: false,
@@ -63,6 +66,7 @@ const sessionParser = session({
 	cookie: {
 		secure: process.env.NODE_ENV === 'production',
 		sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+		maxAge: 1000 * 60 * 60 * 24 // Czas życia ciasteczka: 24 godziny (w milisekundach)
 	},
 });
 app.use(sessionParser);
@@ -118,9 +122,12 @@ async function sendControlCommand(commandPayload) {
 	let commandType = '',
 		commandData = {},
 		controlResourceType = '';
+    
+    // Zaktualizowano: Zmienna payload jest teraz zdefiniowana w szerszym zakresie
+    let payload;
 
 	switch (action) {
-		case 'start':
+		case 'start': // Mower start
 			commandType = 'START_SECONDS_TO_OVERRIDE';
 			commandData = { seconds: parseInt(value, 10) * 60 };
 			controlResourceType = 'MOWER_CONTROL';
@@ -133,13 +140,42 @@ async function sendControlCommand(commandPayload) {
 			commandType = 'PARK_UNTIL_FURTHER_NOTICE';
 			controlResourceType = 'MOWER_CONTROL';
 			break;
-		case 'startWatering':
+
+		case 'startWatering': // Watering computer start
 			commandType = 'START_SECONDS_TO_OVERRIDE';
 			commandData = { seconds: parseInt(value, 10) * 60 };
 			controlResourceType = 'VALVE_CONTROL';
+
+			// --- NOWA LOGIKA: Planowanie zatrzymania podlewania ---
+			const wateringDurationMs = parseInt(value, 10) * 60 * 1000; // Konwertuj minuty na milisekundy
+			const stopTime = new Date(Date.now() + wateringDurationMs);
+
+			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
+
+			// Utwórz unikalny identyfikator dla tego zadania zatrzymania, aby można było je anulować, jeśli to konieczne
+			const stopJobId = `stop-watering-${valveServiceId}-${Date.now()}`;
+
+			// Zaplanuj zadanie zatrzymania
+			schedule.scheduleJob(stopJobId, stopTime, async () => {
+				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
+				try {
+					// Wywołaj komendę stopWatering dla tego konkretnego zaworu
+					await sendControlCommand({
+						deviceId: deviceId, // ID głównego urządzenia
+						action: 'stopWatering',
+						valveServiceId: valveServiceId, // ID konkretnego zaworu
+						deviceType: deviceType // Typ urządzenia
+					});
+					console.log(`[Schedule] Zatrzymanie podlewania dla zaworu ${valveServiceId} wykonane pomyślnie.`);
+				} catch (stopError) {
+					console.error(`[Schedule] Błąd podczas zatrzymywania podlewania dla zaworu ${valveServiceId}:`, stopError.message);
+				}
+			});
+			// --- KONIEC NOWEJ LOGIKI ---
 			break;
-		case 'stopWatering':
-			commandType = 'STOP_UNTIL_NEXT_TASK';
+
+		case 'stopWatering': // Watering computer stop
+			commandType = 'STOP_UNTIL_NEXT_TASK'; // Sprawdź, czy Gardena API ma bardziej ogólny STOP
 			controlResourceType = 'VALVE_CONTROL';
 			break;
 		case 'turnOn':
@@ -153,14 +189,15 @@ async function sendControlCommand(commandPayload) {
 		default:
 			throw new Error(`Nieznana akcja: ${action}`);
 	}
-
-	const payload = {
-		data: {
-			type: controlResourceType,
-			id: uuidv4(),
-			attributes: { command: commandType, ...commandData },
-		},
-	};
+    
+    // Zaktualizowano: Payload jest konstruowany tutaj, po bloku switch
+    payload = {
+        data: {
+            type: controlResourceType,
+            id: uuidv4(),
+            attributes: { command: commandType, ...commandData },
+        },
+    };
 
 	try {
 		await axios.put(apiUrl, payload, {
@@ -200,7 +237,8 @@ async function loadSchedulesAndRun() {
 			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
 			db.schedules.forEach(job => {
 				if (job.enabled) {
-					const scheduledJob = schedule.scheduleJob(job.cron, () => sendControlCommand(job));
+					// Upewnij się, że node-schedule interpretuje CRON jako UTC
+					const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, () => sendControlCommand(job));
 					scheduledJobs.set(job.id, scheduledJob);
 				}
 			});

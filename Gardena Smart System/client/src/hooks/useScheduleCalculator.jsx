@@ -8,27 +8,34 @@ const cronIndexToUIShortMap = daysOfWeekUIOrder.reduce((acc, day) => {
 
 const getTaskGridPosition = job => {
 	const [jobMinute, jobHour, , , jobCronDays] = job.cron.split(' ');
-	const startHour = parseInt(jobHour, 10);
-	const startMinute = parseInt(jobMinute, 10);
 	const duration = parseInt(job.value, 10);
 	const cronDayUIShorts = jobCronDays
 		.split(',')
-		.map(dIndex => cronIndexToUIShortMap[parseInt(dIndex, 10)])
+		.map(dIndex => daysOfWeekUIOrder.find(day => day.cronIndex === parseInt(dIndex, 10))?.short) 
 		.filter(Boolean);
 
-	const displayStartHour = String(startHour).padStart(2, '0');
-	const displayStartMinute = String(startMinute).padStart(2, '0');
+	// Utwórz datę w UTC na podstawie CRON
+	const utcStart = new Date();
+	utcStart.setUTCHours(parseInt(jobHour, 10), parseInt(jobMinute, 10), 0, 0);
+
+	// Konwertuj datę UTC na lokalny czas użytkownika
+	const localStartHour = utcStart.getHours();
+	const localStartMinute = utcStart.getMinutes();
+
+	const displayStartHour = String(localStartHour).padStart(2, '0');
+	const displayStartMinute = String(localStartMinute).padStart(2, '0');
 	const displayStartTime = `${displayStartHour}:${displayStartMinute}`;
 
-	const endMinutesTotal = startHour * 60 + startMinute + duration;
-	const displayEndHour = String(Math.floor(endMinutesTotal / 60) % 24).padStart(2, '0');
-	const displayEndMinute = String(endMinutesTotal % 60).padStart(2, '0');
+	// Oblicz lokalny czas zakończenia
+	const localEndMinutesTotal = localStartHour * 60 + localStartMinute + duration;
+	const displayEndHour = String(Math.floor(localEndMinutesTotal / 60) % 24).padStart(2, '0');
+	const displayEndMinute = String(localEndMinutesTotal % 60).padStart(2, '0');
 	const displayEndTime = `${displayEndHour}:${displayEndMinute}`;
 
 	return {
 		...job,
-		start: startHour * 60 + startMinute,
-		end: startHour * 60 + startMinute + duration,
+		start: localStartHour * 60 + localStartMinute, // Czas startu w minutach od północy (lokalny)
+		end: localStartHour * 60 + localStartMinute + duration, // Czas końca w minutach od północy (lokalny)
 		height: duration,
 		dayUIShorts: cronDayUIShorts,
 		displayStartTime,

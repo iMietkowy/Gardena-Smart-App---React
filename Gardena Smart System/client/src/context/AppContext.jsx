@@ -3,6 +3,7 @@ import { useNotificationContext } from './NotificationContext';
 import getMainDeviceId from '@/utils/getMainDeviceId';
 import { transformGardenaData } from '@/utils/gardenaDataTransformer';
 import { apiClient } from '@/utils/apiClient';
+import { getMowerErrorInfo } from '@/utils/statusUtils';
 
 const AppContext = createContext();
 
@@ -196,7 +197,7 @@ export const AppProvider = ({ children }) => {
 
 				// Logika powiadomień dla kosiarek
 				if (currentDevice.type === 'MOWER') {
-					// Zaktualizowano: Rozszerzono stany "było koszenie", aby uwzględnić również stany przejściowe po koszeniu, ale przed parkowaniem/ładowaniem
+					// Zaktualizowano: Rozszerzono stany "było koszenie", aby uwzględnić również stany przejściowe po koszeniu
 					const wasMowingOrSearching = ['mowing', 'ok_cutting', 'ok_searching'].includes(prevDevice.attributes?.activity?.value?.toLowerCase());
 					
 					const isNowParkedOrCharging = [
@@ -209,13 +210,24 @@ export const AppProvider = ({ children }) => {
 						'parked_until_further_notice'
 					].includes(currentDevice.attributes?.activity?.value?.toLowerCase());
 
-					if (wasMowingOrSearching && isNowParkedOrCharging) { // Zmieniono warunek na wasMowingOrSearching
+					if (wasMowingOrSearching && isNowParkedOrCharging) { 
 						addNotificationToBell(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
 						showToastNotification(`Kosiarka "${currentDevice.displayName}" zakończyła koszenie.`, 'success');
 					}
+
+					// --- Powiadomienie o błędzie kosiarki ---
+					const wasOkState = prevDevice.attributes?.state?.value?.toLowerCase() === 'ok';
+					const isNowErrorOrWarningState = ['error', 'warning'].includes(currentDevice.attributes?.state?.value?.toLowerCase());
+					const errorMessage = getMowerErrorInfo(currentDevice.attributes?.lastErrorCode?.value);
+
+					if (wasOkState && isNowErrorOrWarningState && errorMessage) {
+						addNotificationToBell(`Błąd kosiarki "${currentDevice.displayName}": ${errorMessage}`, 'error');
+						showToastNotification(`Błąd kosiarki "${currentDevice.displayName}": ${errorMessage}`, 'error');
+					}
+					
 				}
 
-				// --- NOWA LOGIKA POWIADOMIEŃ DLA STEROWNIKÓW NAWADNIANIA ---
+				// --- LOGIKA POWIADOMIEŃ DLA STEROWNIKÓW NAWADNIANIA ---
 				if (currentDevice.type === 'SMART_WATERING_COMPUTER') {
 					const prevValves = prevDevice._valveServices || [];
 					const currentValves = currentDevice._valveServices || [];
@@ -234,7 +246,7 @@ export const AppProvider = ({ children }) => {
 						}
 					});
 				}
-				// --- KONIEC NOWEJ LOGIKI ---
+			
 			});
 		}
 		// Zawsze aktualizuj ref, aby mieć aktualny stan poprzednich urządzeń
