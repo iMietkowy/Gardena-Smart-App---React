@@ -78,6 +78,9 @@ GARDENA_REDIRECT_URI=http://localhost:3001/callback
 
 # Port serwera
 SERVER_PORT=3001
+
+#Adres URL z Render.com
+RENDER_FRONTEND_URL=adres-url-z-render-com
 ```
 
 W folderze `client/` utwórz plik o nazwie `.env.development` i uzupełnij go adresem URL serwera backendowego.
