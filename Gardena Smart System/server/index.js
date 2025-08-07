@@ -69,7 +69,7 @@ app.get('/healthz', (req, res) => {
 });
 
 //Uproszczona "baza danych" użytkowników
-const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
+const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }]; // <==== USTAW LOGIN I HASŁO JAKIE CHCESZ
 
 // --- Definicje API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;

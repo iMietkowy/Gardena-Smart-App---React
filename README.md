@@ -41,6 +41,24 @@ Aplikacja zbudowana jest w architekturze monorepo, z oddzielonym frontendem i ba
 
 ---
 
+## 🏛️ Architektura API
+
+Backend udostępnia REST API do zarządzania danymi. Główne endpointy to:
+
+| Metoda   | Ścieżka                                  | Opis                                             |
+| :------- | :--------------------------------------- | :----------------------------------------------- |
+| `POST`   | `/api/login`                             | Logowanie użytkownika.                           |
+| `GET`    | `/api/check-auth`                        | Sprawdza status uwierzytelnienia sesji.          |
+| `GET`    | `/api/gardena/devices`                   | Pobiera listę wszystkich urządzeń z API Gardena. |
+| `POST`   | `/api/gardena/devices/:deviceId/control` | Wysyła komendę sterującą do urządzenia.          |
+| `GET`    | `/api/weather`                           | Pobiera aktualne dane pogodowe.                  |
+| `GET`    | `/api/schedules`                         | Pobiera listę wszystkich harmonogramów.          |
+| `POST`   | `/api/schedules`                         | Dodaje nowy harmonogram.                         |
+| `PATCH`  | `/api/schedules/:id/toggle`              | Włącza lub wyłącza istniejący harmonogram.       |
+| `DELETE` | `/api/schedules/:id`                     | Usuwa konkretny harmonogram.                     |
+
+---
+
 ## 🚀 Uruchomienie Projektu
 
 ### Wymagania
@@ -110,6 +128,14 @@ npm run dev
 
 Aplikacja frontendowa będzie dostępna pod adresem `http://localhost:3000` (lub innym wskazanym w pliku konfiguracyjnym `vite.config.js`).
 
+Dane do logowania:
+
+Login: `admin`
+
+Hasło: `admin123`
+
+Dane do logowania można zmienić w pliku `server/index.js`.
+
 ## 🌐 Wdrożenie na Render.com
 
 Projekt jest w pełni przygotowany do wdrożenia na darmowym planie platformy Render.com jako jeden Web Service, który obsługuje zarówno backend, jak i frontend.
@@ -141,6 +167,8 @@ cd ../client && npm install && npm run build && cd ../server && npm install
 ```
 
 - **Zmienne środowiskowe**: Przepisz wszystkie zmienne z pliku `server.env` do zakładki "Environment" w ustawieniach usługi. Nie dodawaj`VITE_BACKEND_URL`.
+
+---
 
 ## 📂 Struktura Projektu
 

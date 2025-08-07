@@ -43,9 +43,9 @@ const ScheduleGrid = ({ tasks, onTaskClick }) => {
 		const targetRect = event.currentTarget.getBoundingClientRect();
 		setTooltipCoords({
 			// Pozycjonowanie po prawej stronie elementu + niewielki margines
-			x: targetRect.right + 10, 
+			x: targetRect.left - 130, 
 			// Wyrównanie do góry elementu
-			y: targetRect.top,
+			y: targetRect.top - 270,
 		});
 	};
 
