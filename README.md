@@ -35,7 +35,7 @@ Aplikacja zbudowana jest w architekturze monorepo, z oddzielonym frontendem i ba
 - **Środowisko:** Node.js
 - **Framework:** Express.js
 - **Komunikacja w czasie rzeczywistym:** `ws` (WebSocket)
-- **Zadania CRON:** `node-schedule`
+- **Zadania CRON:** `node-corn`
 - **Bezpieczeństwo:** `bcryptjs` (hashowanie haseł), `express-session`
 - **Baza danych:** Plik `db.json` do przechowywania harmonogramów
 
