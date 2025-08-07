@@ -40,32 +40,67 @@ const ScheduleForm = ({ devices, onAddSchedule }) => {
 			return;
 		}
 
-		// Utwórz daty w lokalnej strefie czasowej
-		const localStartDate = new Date();
-		localStartDate.setHours(parseInt(startHour, 10), parseInt(startMinute, 10), 0, 0);
-		const localEndDate = new Date();
-		localEndDate.setHours(parseInt(endHour, 10), parseInt(endMinute, 10), 0, 0);
+		const localStartHour = parseInt(startHour, 10);
+		const localStartMinute = parseInt(startMinute, 10);
+		const localEndHour = parseInt(endHour, 10);
+		const localEndMinute = parseInt(endMinute, 10);
 
-		if (localEndDate <= localStartDate) {
+		const startTimeInMinutes = localStartHour * 60 + localStartMinute;
+		const endTimeInMinutes = localEndHour * 60 + localEndMinute;
+
+		if (endTimeInMinutes <= startTimeInMinutes) {
 			showToastNotification('Godzina zakończenia musi być późniejsza niż godzina rozpoczęcia.', 'error');
 			return;
 		}
 
-		// Oblicz czas trwania w minutach
-		const durationInMinutes = (localEndDate.getTime() - localStartDate.getTime()) / (1000 * 60);
+		const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
 
-		// Konwertuj lokalny czas rozpoczęcia na UTC
-		const utcStartHour = localStartDate.getUTCHours();
-		const utcStartMinute = localStartDate.getUTCMinutes();
-
-		// Dni tygodnia w CRON są od 0 (Niedziela) do 6 (Sobota).
-		// daysOfWeekUIOrder mapuje PON (1) do NIE (0).
-		// Musimy upewnić się, że CRON index jest poprawny dla UTC,
-		// ale ponieważ CRON days nie mają wpływu na strefę czasową, używamy ich bezpośrednio.
-		const cronDays = days.map(dayShort => daysOfWeekUIOrder.find(d => d.short === dayShort)?.cronIndex).join(',');
+		// --- NOWA, NIEZAWODNA LOGIKA PRZELICZANIA CZASU NA UTC ---
 		
-		// Utwórz wyrażenie CRON z godziną i minutą w UTC
-		const cron = `${utcStartMinute} ${utcStartHour} * * ${cronDays}`;
+		// getTimezoneOffset() zwraca różnicę w minutach (np. -120 dla UTC+2).
+		// Dzielimy przez -60, aby uzyskać przesunięcie w godzinach (np. 2 dla UTC+2).
+		const timezoneOffsetHours = new Date().getTimezoneOffset() / -60;
+
+		let utcStartHour = localStartHour - timezoneOffsetHours;
+		let dayOffset = 0; // O ile dni trzeba przesunąć harmonogram
+
+		// Obsługa sytuacji, gdy przeliczenie na UTC cofa nas do poprzedniego dnia
+		if (utcStartHour < 0) {
+			utcStartHour += 24; // np. -2 staje się 22
+			dayOffset = -1; // Zadanie w UTC jest dzień wcześniej
+		}
+		// Obsługa sytuacji, gdy przeliczenie na UTC przenosi nas do następnego dnia
+		if (utcStartHour >= 24) {
+			utcStartHour -= 24; // np. 25 staje się 1
+			dayOffset = 1; // Zadanie w UTC jest dzień później
+		}
+
+		const cronDays = days
+			.map(dayShort => {
+				const selectedDay = daysOfWeekUIOrder.find(d => d.short === dayShort);
+				if (!selectedDay) return null;
+
+				let utcDay = selectedDay.cronIndex + dayOffset;
+
+				// Poprawna obsługa "zawijania" się tygodnia
+				if (utcDay < 0) {
+					utcDay = 6; // Przesunięcie z Niedzieli (0) na Sobotę (6)
+				}
+				if (utcDay > 6) {
+					utcDay = 0; // Przesunięcie z Soboty (6) na Niedzielę (0)
+				}
+				return utcDay;
+			})
+			.filter(day => day !== null)
+			.join(',');
+		
+		if (!cronDays) {
+			showToastNotification('Proszę wybrać przynajmniej jeden dzień tygodnia.', 'error');
+			return;
+		}
+
+		const cron = `${localStartMinute} ${utcStartHour} * * ${cronDays}`;
+		// --- KONIEC NOWEJ LOGIKI ---
 
 		const deviceName = selectedDevice?.displayName || 'Urządzenie';
 		const valveName = selectedDevice?._valveServices?.find(v => v.id === selectedValveId)?.attributes?.name?.value;

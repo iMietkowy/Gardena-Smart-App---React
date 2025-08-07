@@ -25,6 +25,7 @@ const statusMap = {
 	PARKED_TIMER: { text: 'Zaparkowany', className: 'status-warn' },
 	PARKED_UNTIL_NEXT_TASK: { text: 'Zaparkowany (wg harmonogramu)', className: 'status-warn' },
 	PARKED_UNTIL_FURTHER_NOTICE: { text: 'Zaparkowany (do odwołania)', className: 'status-warn' },
+	PARKED_PARK_SELECTED: { text: 'Zaparkowany (do odwołania)', className: 'status-warn' },
 	PAUSED_IN_CS: { text: 'Wstrzymano w Bazie', className: 'status-warn' },
 	UNAVAILABLE: { text: 'Uśpiony', className: 'status-warn' },
 	CLOSED: { text: 'Zamknięte', className: 'status-warn' },

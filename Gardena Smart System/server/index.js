@@ -3,7 +3,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
-import schedule from 'node-schedule';
+import cron from 'node-cron';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,16 +31,12 @@ const frontendDistPath = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(frontendDistPath));
 
 // Middleware
-// Konfiguracja CORS dla produkcji i deweloperki
 const allowedOrigins = [
-	'http://localhost:3000', // Dev
+	'http://localhost:3000',
 ];
-
-// Dodaj adres URL Render.com z zmiennej środowiskowej, jeśli jest zdefiniowana
 if (process.env.RENDER_FRONTEND_URL) {
 	allowedOrigins.push(process.env.RENDER_FRONTEND_URL);
 }
-
 app.use(
 	cors({
 		origin: (origin, callback) => {
@@ -53,12 +49,9 @@ app.use(
 		credentials: true,
 	})
 );
-
 app.use(express.json());
 
 //Konfiguracja sesji.
-// UWAGA: Sesje są teraz przechowywane w pamięci serwera i zostaną utracone po restarcie.
-// Aby sesje były trwałe, rozważ użycie trwałego magazynu sesji (np. connect-loki dla plików, lub innej bazy danych).
 const sessionParser = session({
 	secret: process.env.SESSION_SECRET,
 	resave: false,
@@ -66,7 +59,7 @@ const sessionParser = session({
 	cookie: {
 		secure: process.env.NODE_ENV === 'production',
 		sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-		maxAge: 1000 * 60 * 60 * 24 // Czas życia ciasteczka: 24 godziny (w milisekundach)
+		maxAge: 1000 * 60 * 60 * 24,
 	},
 });
 app.use(sessionParser);
@@ -78,14 +71,14 @@ app.get('/healthz', (req, res) => {
 //Uproszczona "baza danych" użytkowników
 const users = [{ id: '1', username: 'admin', passwordHash: await bcrypt.hash('admin123', 10) }];
 
-// --- Definicje zmiennych i funkcji pomocniczych API GARDENA ---
+// --- Definicje API GARDENA ---
 const GARDENA_CLIENT_ID = process.env.GARDENA_CLIENT_ID;
 const GARDENA_CLIENT_SECRET = process.env.GARDENA_CLIENT_SECRET;
 const GARDENA_API_KEY = process.env.GARDENA_API_KEY;
 const GARDENA_AUTH_URL = 'https://api.authentication.husqvarnagroup.dev/v1/oauth2/token';
 const GARDENA_SMART_API_BASE_URL = 'https://api.smart.gardena.dev/v1';
 
-// --- Definicje zmiennych i funkcji pomocniczych API OPEN WEATHER MAP ---
+// --- Definicje API OPEN WEATHER MAP ---
 const OPENWEATHERMAP_API_KEY = process.env.OPENWEATHERMAP_API_KEY;
 const OPENWEATHERMAP_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
@@ -122,12 +115,10 @@ async function sendControlCommand(commandPayload) {
 	let commandType = '',
 		commandData = {},
 		controlResourceType = '';
-    
-    // Zaktualizowano: Zmienna payload jest teraz zdefiniowana w szerszym zakresie
-    let payload;
+	let payload;
 
 	switch (action) {
-		case 'start': // Mower start
+		case 'start':
 			commandType = 'START_SECONDS_TO_OVERRIDE';
 			commandData = { seconds: parseInt(value, 10) * 60 };
 			controlResourceType = 'MOWER_CONTROL';
@@ -140,42 +131,15 @@ async function sendControlCommand(commandPayload) {
 			commandType = 'PARK_UNTIL_FURTHER_NOTICE';
 			controlResourceType = 'MOWER_CONTROL';
 			break;
-
-		case 'startWatering': // Watering computer start
+		case 'startWatering':
 			commandType = 'START_SECONDS_TO_OVERRIDE';
 			commandData = { seconds: parseInt(value, 10) * 60 };
 			controlResourceType = 'VALVE_CONTROL';
-
-			// --- NOWA LOGIKA: Planowanie zatrzymania podlewania ---
-			const wateringDurationMs = parseInt(value, 10) * 60 * 1000; // Konwertuj minuty na milisekundy
-			const stopTime = new Date(Date.now() + wateringDurationMs);
-
-			console.log(`[Schedule] Planowanie zatrzymania podlewania dla zaworu ${valveServiceId} o ${stopTime.toLocaleTimeString()}`);
-
-			// Utwórz unikalny identyfikator dla tego zadania zatrzymania, aby można było je anulować, jeśli to konieczne
-			const stopJobId = `stop-watering-${valveServiceId}-${Date.now()}`;
-
-			// Zaplanuj zadanie zatrzymania
-			schedule.scheduleJob(stopJobId, stopTime, async () => {
-				console.log(`[Schedule] Wykonuję zadanie zatrzymania podlewania dla zaworu ${valveServiceId}`);
-				try {
-					// Wywołaj komendę stopWatering dla tego konkretnego zaworu
-					await sendControlCommand({
-						deviceId: deviceId, // ID głównego urządzenia
-						action: 'stopWatering',
-						valveServiceId: valveServiceId, // ID konkretnego zaworu
-						deviceType: deviceType // Typ urządzenia
-					});
-					console.log(`[Schedule] Zatrzymanie podlewania dla zaworu ${valveServiceId} wykonane pomyślnie.`);
-				} catch (stopError) {
-					console.error(`[Schedule] Błąd podczas zatrzymywania podlewania dla zaworu ${valveServiceId}:`, stopError.message);
-				}
-			});
-			// --- KONIEC NOWEJ LOGIKI ---
+			// ZMIANA: Usunięto całą logikę setTimeout/planowania zatrzymania.
+			// Gardena sama zatrzyma podlewanie po czasie podanym w 'seconds'.
 			break;
-
-		case 'stopWatering': // Watering computer stop
-			commandType = 'STOP_UNTIL_NEXT_TASK'; // Sprawdź, czy Gardena API ma bardziej ogólny STOP
+		case 'stopWatering':
+			commandType = 'STOP_UNTIL_NEXT_TASK';
 			controlResourceType = 'VALVE_CONTROL';
 			break;
 		case 'turnOn':
@@ -189,15 +153,14 @@ async function sendControlCommand(commandPayload) {
 		default:
 			throw new Error(`Nieznana akcja: ${action}`);
 	}
-    
-    // Zaktualizowano: Payload jest konstruowany tutaj, po bloku switch
-    payload = {
-        data: {
-            type: controlResourceType,
-            id: uuidv4(),
-            attributes: { command: commandType, ...commandData },
-        },
-    };
+
+	payload = {
+		data: {
+			type: controlResourceType,
+			id: uuidv4(),
+			attributes: { command: commandType, ...commandData },
+		},
+	};
 
 	try {
 		await axios.put(apiUrl, payload, {
@@ -219,7 +182,6 @@ const isAuthenticated = (req, res, next) => {
 	if (req.session.userId) {
 		return next();
 	}
-
 	res.status(401).json({ message: 'Brak autoryzacji. Proszę się zalogować.' });
 };
 
@@ -227,21 +189,27 @@ const scheduledJobs = new Map();
 async function loadSchedulesAndRun() {
 	try {
 		for (const job of scheduledJobs.values()) {
-			job.cancel();
+			job.stop();
 		}
 		scheduledJobs.clear();
-
 		const data = await fs.readFile(DB_PATH, 'utf8');
 		const db = JSON.parse(data);
 		if (db && db.schedules) {
 			console.log(`[INFO] Znaleziono ${db.schedules.length} harmonogramów w bazie danych.`);
-			db.schedules.forEach(job => {
-				if (job.enabled) {
-					// Upewnij się, że node-schedule interpretuje CRON jako UTC
-					const scheduledJob = schedule.scheduleJob(job.cron, { tz: 'UTC' }, () => sendControlCommand(job));
-					scheduledJobs.set(job.id, scheduledJob);
+			for (const jobData of db.schedules) {
+				if (jobData.enabled && cron.validate(jobData.cron)) {
+					const scheduledTask = cron.schedule(jobData.cron, () => {
+						console.log(`[node-cron] Czas na wykonanie zadania dla "${jobData.deviceName}" (CRON: "${jobData.cron}")`);
+						sendControlCommand(jobData);
+					}, {
+						scheduled: true,
+						timezone: "UTC"
+					});
+					scheduledJobs.set(jobData.id, scheduledTask);
+				} else if (!cron.validate(jobData.cron)) {
+					console.error(`[BŁĄD] Nieprawidłowy format CRON dla zadania ${jobData.id}: "${jobData.cron}"`);
 				}
-			});
+			}
 			console.log(`[INFO] Załadowano i uruchomiono ${scheduledJobs.size} włączonych zadań.`);
 		}
 	} catch (error) {
@@ -249,39 +217,32 @@ async function loadSchedulesAndRun() {
 			console.log('Plik db.json nie istnieje, tworzenie nowego.');
 			await fs.writeFile(DB_PATH, JSON.stringify({ schedules: [] }, null, 2));
 		} else {
-			throw new Error(`Nie można załadować harmonogramów z bazy danych: ${error.message}`);
+			console.error(`Nie można załadować harmonogramów: ${error.message}`);
 		}
 	}
 }
 
-// Funkcja pomocnicza do aktualizacji harmonogramów
 async function updateSchedules(updateLogic) {
 	const data = await fs.readFile(DB_PATH, 'utf8');
 	const db = JSON.parse(data);
-
 	db.schedules = updateLogic(db.schedules || []);
-
 	await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
 	await loadSchedulesAndRun();
 	return db.schedules;
 }
 
 // --- Definicja wszystkich ścieżek API ---
-// Endpointy do autoryzacji
 app.post('/api/login', async (req, res, next) => {
 	try {
 		const { username, password } = req.body;
 		const user = users.find(u => u.username === username);
-
 		if (!user) {
 			return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
 		}
-
 		const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 		if (!isPasswordValid) {
 			return res.status(401).json({ message: 'Nieprawidłowa nazwa użytkownika lub hasło.' });
 		}
-
 		req.session.userId = user.id;
 		req.session.username = user.username;
 		res.status(200).json({ message: 'Zalogowano pomyślnie!', username: user.username });
@@ -306,7 +267,6 @@ app.get('/api/check-auth', (req, res) => {
 	res.status(401).json({ isAuthenticated: false });
 });
 
-// Chronione endpointy
 app.get('/api/gardena/devices', isAuthenticated, async (req, res, next) => {
 	try {
 		if (devicesCache && Date.now() - cacheTimestamp < CACHE_DURATION_MS) {
@@ -383,7 +343,7 @@ app.get('/api/schedules/next/:deviceId', isAuthenticated, async (req, res, next)
 		let nextInvocation = null;
 		deviceSchedules.forEach(job => {
 			try {
-				const interval = parseExpression(job.cron);
+				const interval = parseExpression(job.cron, { utc: true });
 				const nextDate = interval.next().toDate();
 				if (!nextInvocation || nextDate < nextInvocation) {
 					nextInvocation = nextDate;
@@ -449,7 +409,6 @@ const setAllSchedulesEnabled = async (res, next, enabled, filterFn = () => true)
 
 app.patch('/api/schedules/all/disable', isAuthenticated, (req, res, next) => setAllSchedulesEnabled(res, next, false));
 app.patch('/api/schedules/all/enable', isAuthenticated, (req, res, next) => setAllSchedulesEnabled(res, next, true));
-
 app.patch('/api/schedules/device/:deviceId/disable', isAuthenticated, (req, res, next) => {
 	setAllSchedulesEnabled(res, next, false, job => job.deviceId === req.params.deviceId);
 });
@@ -479,33 +438,24 @@ const errorHandler = (err, req, res, next) => {
 	console.error(`[BŁĄD SERWERA] ${new Date().toISOString()}`);
 	console.error('Ścieżka:', req.path);
 	console.error('Wiadomość:', err.message);
-
-	// Logujemy stos wywołań tylko w trybie deweloperskim
 	if (process.env.NODE_ENV !== 'production') {
 		console.error('Stos:', err.stack);
 	}
-
 	const statusCode = err.statusCode || 500;
-
-	// Specjalna obsługa błędów z Axios (np. API Gardena)
 	if (err.isAxiosError && err.response) {
 		const axiosStatusCode = err.response.status;
 		return res.status(axiosStatusCode).json({
 			error: 'Wystąpił błąd podczas komunikacji z zewnętrznym serwisem. Spróbuj ponownie.',
 		});
 	}
-
-	// Generyczna odpowiedź dla wszystkich innych błędów
 	res.status(statusCode).json({
 		error: 'Wystąpił nieoczekiwany błąd serwera. Skontaktuj się z administratorem.',
 	});
 };
-
 app.use(errorHandler);
 
 // --- Uruchomienie serwera HTTP i WebSocket ---
 const server = http.createServer(app);
-
 const wss = new WebSocketServer({ noServer: true });
 
 wss.on('connection', (ws, req) => {
@@ -521,7 +471,6 @@ wss.on('connection', (ws, req) => {
 
 server.on('upgrade', function upgrade(request, socket, head) {
 	console.log('[WSS] Przechwycono żądanie uaktualnienia protokołu.');
-
 	sessionParser(request, {}, () => {
 		if (!request.session?.userId) {
 			console.log('[WSS] Odrzucono połączenie WebSocket - brak sesji HTTP.');
@@ -565,7 +514,6 @@ async function startGardenaLiveStream() {
 			'x-api-key': GARDENA_API_KEY,
 			Authorization: 'Bearer ' + token,
 		};
-
 		const locationsResponse = await axios.get(`${GARDENA_SMART_API_BASE_URL}/locations`, { headers });
 		if (!locationsResponse.data?.data?.length) {
 			console.error('[Gardena WS] Nie znaleziono lokalizacji. Nie można uruchomić WebSocket.');
@@ -573,16 +521,13 @@ async function startGardenaLiveStream() {
 		}
 		const locationId = locationsResponse.data.data[0].id;
 		console.log(`[Gardena WS] Uzyskano Location ID: ${locationId}`);
-
 		const wsPayload = {
 			data: { type: 'WEBSOCKET', id: uuidv4(), attributes: { locationId } },
 		};
 		const wsUrlResponse = await axios.post(`${GARDENA_SMART_API_BASE_URL}/websocket`, wsPayload, { headers });
 		const websocketUrl = wsUrlResponse.data.data.attributes.url;
 		console.log('[Gardena WS] Otrzymano tymczasowy adres WebSocket. Łączenie...');
-
 		const gardenaSocket = new WebSocket(websocketUrl);
-
 		gardenaSocket.on('open', () => {
 			console.log('[Gardena WS] Połączono z Gardena Realtime API! Nasłuchiwanie na zmiany...');
 			setInterval(() => {
@@ -591,28 +536,20 @@ async function startGardenaLiveStream() {
 				}
 			}, 150000);
 		});
-
 		gardenaSocket.on('message', data => {
 			const message = JSON.parse(data.toString());
 			console.log('[Gardena WS] Otrzymano wiadomość:', message);
 			broadcast(message);
 		});
-
 		gardenaSocket.on('close', (code, reason) => {
-			console.log(
-				`[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Próba ponownego połączenia za 15 sekund...`
-			);
+			console.log(`[Gardena WS] Połączenie z Gardena zostało zamknięte. Kod: ${code}. Próba ponownego połączenia za 15 sekund...`);
 			setTimeout(startGardenaLiveStream, 15000);
 		});
-
 		gardenaSocket.on('error', error => {
 			console.error('[Gardena WS] Wystąpił błąd połączenia:', error);
 		});
 	} catch (error) {
-		console.error(
-			'[Gardena WS] Nie udało się zainicjować połączenia WebSocket:',
-			error.response?.data || error.message
-		);
+		console.error('[Gardena WS] Nie udało się zainicjować połączenia WebSocket:', error.response?.data || error.message);
 		console.log('[Gardena WS] Ponowna próba za 15 minut...');
 		setTimeout(startGardenaLiveStream, 900000);
 	}
