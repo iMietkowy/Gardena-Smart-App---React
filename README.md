@@ -190,3 +190,11 @@ Wszystkie skrypty należy uruchamiać z **głównego folderu projektu -> `Garden
 | `npm run dev:client`  | Uruchamia tylko serwer deweloperski frontendu (Vite).                 |
 | `npm run dev:server`  | Uruchamia tylko serwer backendowy z `nodemon`.                        |
 | `npm run start`       | Uruchamia serwer backendowy w trybie produkcyjnym.                    |
+
+---
+
+## Podgląd aplikacji
+
+![Podgląd Aplikacji](./docs/MainPage.png)
+![Podgląd Aplikacji](./docs/DeviceListPage.png)
+![Podgląd Aplikacji](./docs/SchedulePage.png)
