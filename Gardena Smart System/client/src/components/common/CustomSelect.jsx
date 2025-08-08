@@ -1,21 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 const CustomSelect = ({ options, value, onChange, placeholder = '-- Wybierz --' }) => {
-	const [isOpen, setIsOpen] = useState(false);
-	const selectRef = useRef(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const selectRef = useRef(null);
 
-	useEffect(() => {
-		const handleClickOutside = event => {
-			if (selectRef.current && !selectRef.current.contains(event.target)) {
-				setIsOpen(false);
-			}
-		};
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-		};
-	}, []);
+    
+    useClickOutside([selectRef], () => {
+        setIsOpen(false);
+    });
 
 	const handleOptionClick = optionValue => {
 		onChange(optionValue);

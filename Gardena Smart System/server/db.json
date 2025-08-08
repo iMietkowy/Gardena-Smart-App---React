@@ -1,3 +1,15 @@
 {
-  "schedules": []
+  "schedules": [
+    {
+      "cron": "0 6 * * 1",
+      "deviceId": "f5120a34-0d39-49a9-9317-0f0f88d0e1fc",
+      "valveServiceId": "f5120a34-0d39-49a9-9317-0f0f88d0e1fc:1",
+      "deviceName": "Sikawka Mietka - Mały",
+      "action": "startWatering",
+      "value": 60,
+      "deviceType": "SMART_WATERING_COMPUTER",
+      "enabled": true,
+      "id": "4486cb90-912a-4666-ad30-e17abc7abc32"
+    }
+  ]
 }
